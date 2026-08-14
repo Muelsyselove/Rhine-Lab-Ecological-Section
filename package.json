@@ -1,15 +1,19 @@
 {
   "name": "rhine-lab-ecological-section",
   "productName": "Rhine Lab Ecological Section",
-  "version": "0.1.0",
+  "version": "0.1.4",
   "description": "莱茵生命生态科 (ECO) — 个人项目集合与启动器",
   "main": "electron/main.js",
   "license": "AGPL-3.0-or-later",
   "scripts": {
     "start": "electron .",
-    "dev:renderer": "node scripts/serve-renderer.js"
+    "dev:renderer": "node scripts/serve-renderer.js",
+    "icon": "node scripts/build-icon.js",
+    "dist": "node scripts/dist.js"
   },
   "devDependencies": {
-    "electron": "43.4.0"
+    "@electron/packager": "^20.3.0",
+    "electron": "43.4.0",
+    "sharp": "^0.35.3"
   }
 }

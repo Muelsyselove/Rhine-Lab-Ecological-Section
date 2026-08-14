@@ -6,8 +6,7 @@
     settings: {},
     projects: [],
     favorites: [],
-    repos: null,
-    reposLoading: false,
+    appVersion: '',
     starred: null,
     starredLoading: false,
     online: !bridge.isMock,
@@ -185,31 +184,7 @@
     })
   );
 
-  /* ---------- 仓库接入 ---------- */
-  page.addEventListener(
-    'fetch-repos',
-    guard(async () => {
-      state.reposLoading = true;
-      sync();
-      try {
-        state.repos = await bridge.fetchGithubRepos();
-      } finally {
-        state.reposLoading = false;
-        sync();
-      }
-    })
-  );
-
-  page.addEventListener(
-    'import-repos',
-    guard(async ({ repos }) => {
-      const imported = await bridge.importProjects(repos, page.activeGroup || undefined);
-      ECO.toast(`已导入 ${imported.length} 份样本`, 'ok');
-      page.activeNav = 'launcher';
-      await refresh();
-    })
-  );
-
+  /* ---------- 本地登记 ---------- */
   page.addEventListener(
     'add-local',
     guard(async () => {
@@ -242,9 +217,29 @@
     })
   );
 
-  /* ---------- 启动：先同步状态，再按设置接收远方来信 ---------- */
+  /* 界面内卸载：确认后拉起卸载向导并退出 */
+  page.addEventListener(
+    'request-uninstall',
+    guard(async () => {
+      const sure = window.confirm(
+        '确定要卸载「莱茵生命生态科 ECO」吗？\n\n卸载向导将随后启动；样本数据（userData）与已种植的项目不会被清除。'
+      );
+      if (!sure) return;
+      const res = await bridge.uninstallApp();
+      if (!res || !res.ok) ECO.toast('未找到卸载程序：开发模式请通过系统「应用设置」卸载', 'error');
+    })
+  );
+
+  /* ---------- 启动：同步版本与状态，再按设置接收远方来信 ---------- */
   async function boot() {
     await refresh();
+    try {
+      const info = await bridge.getAppInfo();
+      state.appVersion = info.version || '';
+      sync();
+    } catch {
+      /* 版本获取失败不影响启动 */
+    }
     if (!state.settings.autoUpdate || typeof bridge.checkUpdates !== 'function') return;
     try {
       const results = await bridge.checkUpdates();

@@ -8,9 +8,7 @@ contextBridge.exposeInMainWorld('eco', {
   getState: () => invoke('state:get'),
   saveSettings: (patch) => invoke('settings:save', patch),
 
-  // 生态园（本人项目）
-  fetchGithubRepos: () => invoke('github:repos'),
-  importProjects: (repos, group) => invoke('projects:import', repos, group),
+  // 生态园（本人项目，来自内置目录）
   addLocalProject: () => invoke('projects:add-local'),
   updateProject: (id, patch) => invoke('projects:update', id, patch),
   removeProject: (id) => invoke('projects:remove', id),
@@ -35,6 +33,8 @@ contextBridge.exposeInMainWorld('eco', {
   chooseDirectory: () => invoke('dialog:choose-dir'),
   chooseFile: () => invoke('dialog:choose-file'),
   openExternal: (url) => invoke('shell:open', url),
+  getAppInfo: () => invoke('app:info'),
+  uninstallApp: () => invoke('app:uninstall'),
   minimize: () => invoke('win:min'),
   toggleMaximize: () => invoke('win:max'),
   closeWindow: () => invoke('win:close'),

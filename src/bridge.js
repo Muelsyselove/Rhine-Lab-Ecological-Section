@@ -3,7 +3,7 @@
 (function () {
   if (window.eco) return; // 真实 Electron 环境
 
-  const LS_KEY = 'eco-mock-state-v2';
+  const LS_KEY = 'eco-mock-state-v3';
   const delay = (ms) => new Promise((r) => setTimeout(r, ms));
   const listeners = new Set();
   const clone = (v) => JSON.parse(JSON.stringify(v));
@@ -14,7 +14,6 @@
         rootDir: 'D:/ECO',
         useRootDir: true,
         autoUpdate: true,
-        github: { username: 'muelsyse', token: '' },
       },
       projects: clone(window.ECO_MOCK.projects),
       favorites: clone(window.ECO_MOCK.favorites),
@@ -105,33 +104,7 @@
       return state.settings;
     },
 
-    /* ---------- 生态园：仓库接入 ---------- */
-    async fetchGithubRepos() {
-      await delay(1100);
-      return clone(window.ECO_MOCK.repos);
-    },
-
-    async importProjects(repos, group) {
-      await delay(200);
-      const existing = new Set(state.projects.map((p) => p.repo));
-      const imported = [];
-      for (const repo of repos) {
-        if (existing.has(repo.full_name)) continue;
-        const project = {
-          id: 'mock-' + Math.random().toString(36).slice(2, 8),
-          name: repo.name, repo: repo.full_name, repoUrl: repo.html_url,
-          description: repo.description || '', language: repo.language || '',
-          stars: repo.stargazers_count || 0, branch: repo.default_branch || 'main',
-          group: group || '未分组', installDir: '', launchCmd: '', source: 'github',
-          status: 'not_installed', installPath: '',
-          version: '', latestVersion: '', ignoredVersion: '', addedAt: Date.now(),
-        };
-        state.projects.push(project);
-        imported.push(project);
-      }
-      persist();
-      return imported;
-    },
+    /* ---------- 生态园：项目来自内置目录 ---------- */
 
     async addLocalProject() {
       await delay(250);
@@ -287,6 +260,16 @@
 
     async openExternal(url) {
       window.open(url, '_blank', 'noopener');
+    },
+
+    async getAppInfo() {
+      await delay(40);
+      return { version: window.ECO_MOCK.version || '0.0.0', packaged: false };
+    },
+
+    async uninstallApp() {
+      await delay(200);
+      return { ok: false };
     },
 
     minimize() {},

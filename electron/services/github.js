@@ -1,32 +1,17 @@
-// GitHub 服务 — 拉取本人仓库 / 收藏（瑰丽花园）/ Release 信息
+// GitHub 服务 — 瑰丽花园星标采集 / Release 信息（生态园项目固定来自内置目录）
+// 全部匿名访问公开 API，启动器无需任何 GitHub 凭据配置
 const API_BASE = 'https://api.github.com';
+const { OWNER } = require('./catalog');
 
-async function fetchRepos({ username, token } = {}) {
-  if (token) {
-    // 仅本人所有仓库
-    return requestAll('/user/repos?per_page=100&sort=updated&affiliation=owner', token);
-  }
-  if (username) {
-    return requestAll(`/users/${encodeURIComponent(username)}/repos?per_page=100&sort=updated&type=owner`, null);
-  }
-  throw new Error('请先在设置中配置 GitHub 用户名或 Token');
-}
-
-// 瑰丽花园：收藏的他人项目（starred）
-async function fetchStarred({ username, token } = {}) {
-  if (token) {
-    return requestAll('/user/starred?per_page=100', token);
-  }
-  if (username) {
-    return requestAll(`/users/${encodeURIComponent(username)}/starred?per_page=100`, null);
-  }
-  throw new Error('请先在设置中配置 GitHub 用户名或 Token');
+// 瑰丽花园：收藏的他人项目（starred，固定采集 OWNER 的星标列表）
+async function fetchStarred() {
+  return requestAll(`/users/${encodeURIComponent(OWNER)}/starred?per_page=100`);
 }
 
 // 最新 Release（含 ECO 资产挑选）
-async function fetchLatestRelease(fullName, token) {
+async function fetchLatestRelease(fullName) {
   const res = await fetch(`${API_BASE}/repos/${fullName}/releases/latest`, {
-    headers: headers(token),
+    headers: headers(),
   });
   if (res.status === 404) return null; // 尚无 Release
   if (!res.ok) {
@@ -53,19 +38,18 @@ async function fetchLatestRelease(fullName, token) {
   };
 }
 
-function headers(token) {
+function headers() {
   return {
     Accept: 'application/vnd.github+json',
     'User-Agent': 'ECO-Launcher',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
   };
 }
 
-async function requestAll(pathAndQuery, token) {
+async function requestAll(pathAndQuery) {
   const repos = [];
   let url = API_BASE + pathAndQuery;
   for (let page = 0; page < 5 && url; page += 1) {
-    const res = await fetch(url, { headers: headers(token) });
+    const res = await fetch(url, { headers: headers() });
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`GitHub API ${res.status}: ${text.slice(0, 200)}`);
@@ -93,4 +77,4 @@ function normalize(repo) {
   };
 }
 
-module.exports = { fetchRepos, fetchStarred, fetchLatestRelease };
+module.exports = { fetchStarred, fetchLatestRelease };

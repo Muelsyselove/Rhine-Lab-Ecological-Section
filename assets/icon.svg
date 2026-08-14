@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- 莱茵生命 · 生态科 ECO — 程序图标：六边形生态舱 + 水滴 + 叶脉 + 卫星点 -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f9a8a"/>
+      <stop offset="0.55" stop-color="#0a6e60"/>
+      <stop offset="1" stop-color="#0d241e"/>
+    </linearGradient>
+    <linearGradient id="drop" x1="0.3" y1="0" x2="0.75" y2="1">
+      <stop offset="0" stop-color="#a7f3e4"/>
+      <stop offset="0.45" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#1fb6cf"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#5eead4" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#5eead4" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- 培养舱底座 -->
+  <rect x="32" y="32" width="960" height="960" rx="225" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="225" fill="url(#halo)"/>
+  <rect x="56" y="56" width="912" height="912" rx="205" fill="none" stroke="#5eead4" stroke-opacity="0.28" stroke-width="6"/>
+
+  <!-- 六边形生态舱（尖顶朝上） -->
+  <path d="M512 168 L806 338 V678 L512 848 L218 678 V338 Z"
+        fill="none" stroke="#5eead4" stroke-opacity="0.62" stroke-width="26" stroke-linejoin="round"/>
+
+  <!-- 水滴（缪尔赛思） -->
+  <path d="M512 306
+           C 617 432 694 524 694 638
+           A 182 182 0 0 1 330 638
+           C 330 524 407 432 512 306 Z"
+        fill="url(#drop)"/>
+  <!-- 叶脉 -->
+  <path d="M512 758 C 566 684 592 612 592 534"
+        fill="none" stroke="#0a6e60" stroke-width="22" stroke-linecap="round" opacity="0.55"/>
+  <!-- 水滴高光 -->
+  <path d="M432 560 C 428 500 452 448 500 402" fill="none"
+        stroke="#eafffb" stroke-width="18" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- 卫星监测点 -->
+  <circle cx="798" cy="238" r="38" fill="#5eead4"/>
+  <circle cx="798" cy="238" r="58" fill="none" stroke="#5eead4" stroke-opacity="0.45" stroke-width="8"/>
+</svg>

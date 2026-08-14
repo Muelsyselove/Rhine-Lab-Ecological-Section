@@ -13,7 +13,6 @@
     render() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
       const s = this.settings;
-      const gh = s.github || {};
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; }
@@ -39,6 +38,10 @@
           .note {
             font-family: var(--eco-font-mono); font-size: 9.5px;
             letter-spacing: .06em; color: var(--eco-ink-3); line-height: 1.7;
+          }
+          .ver {
+            font-family: var(--eco-font-mono); font-weight: 600;
+            color: var(--eco-teal-deep); margin-left: 4px;
           }
           .foot { display: flex; justify-content: flex-end; margin-top: 4px; }
         </style>
@@ -68,16 +71,15 @@
           </div>
         </div>
         <div class="section">
-          <div class="section-title">GITHUB UPLINK · 仓库接入</div>
-          <div class="row">
-            <eco-input id="ghUser" label="用户名 / USERNAME" mono icon="github"
-              value="${ECO.esc(gh.username || '')}" placeholder="your-username"></eco-input>
+          <div class="section-title">SYSTEM · 系统维护</div>
+          <div class="switch-row">
+            <div class="txt">
+              <div class="t1">ECO 启动器<span id="appVersion" class="ver"></span></div>
+              <div class="t2">渠道：<span id="appChannel">…</span> · 卸载不影响样本数据（userData）与已种植项目</div>
+            </div>
+            <eco-button icon="trash" data-act="uninstall" style="display:none">卸载</eco-button>
           </div>
-          <div class="row">
-            <eco-input id="ghToken" label="访问令牌 / TOKEN（可选，私有仓库需要）" mono type="password" icon="link"
-              value="${ECO.esc(gh.token || '')}" placeholder="ghp_…"></eco-input>
-          </div>
-          <div class="note">※ Token 仅保存在本机 userData 目录，不会上传。配置 Token 后可拉取私有仓库。</div>
+          <div class="note">※ 仓库源已内置：github.com/Muelsyselove（生态园项目与瑰丽花园均无需任何 GitHub 配置，开箱即用）。</div>
         </div>
         <div class="foot">
           <eco-button variant="primary" icon="check" data-act="save">保存配置</eco-button>
@@ -85,6 +87,7 @@
       `;
 
       this.shadowRoot.querySelector('[data-act="browse"]').addEventListener('click', () => this.emit('browse-root'));
+      this.shadowRoot.querySelector('[data-act="uninstall"]').addEventListener('click', () => this.emit('request-uninstall'));
       this.shadowRoot.querySelector('[data-act="save"]').addEventListener('click', () => {
         const val = (id) => this.shadowRoot.querySelector(id).value.trim();
         const useRootDir = this.shadowRoot.querySelector('#useRootDir').has('checked');
@@ -94,10 +97,32 @@
             rootDir: val('#rootDir'),
             useRootDir,
             autoUpdate,
-            github: { username: val('#ghUser'), token: val('#ghToken') },
           },
         });
       });
+
+      // 应用信息：版本 + Debug/Release 渠道；正式安装版才显示卸载按钮
+      this.applyAppInfo();
+      if (!this._appInfo && typeof window.eco.getAppInfo === 'function') {
+        window.eco
+          .getAppInfo()
+          .then((info) => {
+            this._appInfo = info;
+            this.applyAppInfo();
+          })
+          .catch(() => {});
+      }
+    }
+
+    applyAppInfo() {
+      const info = this._appInfo;
+      if (!info || !this.shadowRoot) return;
+      const ver = this.shadowRoot.querySelector('#appVersion');
+      const chan = this.shadowRoot.querySelector('#appChannel');
+      const btn = this.shadowRoot.querySelector('[data-act="uninstall"]');
+      if (ver) ver.textContent = 'v' + (info.version || '');
+      if (chan) chan.textContent = info.packaged ? '正式版 Release' : '开发版 Debug';
+      if (btn) btn.style.display = info.packaged ? '' : 'none';
     }
 
     /** 供外部写入浏览到的目录 */

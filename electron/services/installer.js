@@ -55,7 +55,7 @@ async function exists(p) {
 /* ---------- 阶段一：松土（连接项目，获取 release） ---------- */
 async function stageConnect(project, id, mode) {
   emit({ id, stage: 'connect', mode, line: `连接至 ${project.repo} …` });
-  const release = await github.fetchLatestRelease(project.repo, store.getSettings().github.token);
+  const release = await github.fetchLatestRelease(project.repo);
   if (!release) throw new Error('该项目尚无 Release，无法种植。请先按 ECO 接入指南发版');
   if (!release.asset) throw new Error(`Release ${release.tag} 中没有可用的 ECO 压缩包`);
   emit({ id, stage: 'connect', mode, line: `发现版本 ${release.tag} · 资产 ${release.asset.name}` });
@@ -186,12 +186,11 @@ async function install(id, opts = {}) {
 /* ---------- 远方来信（更新检查） ---------- */
 async function checkUpdates() {
   const state = store.getState();
-  const token = state.settings.github.token;
   const results = [];
   for (const p of state.projects) {
     if (p.source !== 'github' || p.status === 'not_installed' || !p.repo) continue;
     try {
-      const release = await github.fetchLatestRelease(p.repo, token);
+      const release = await github.fetchLatestRelease(p.repo);
       if (!release) continue;
       const hasUpdate = p.version && release.tag !== p.version && release.tag !== p.ignoredVersion;
       store.updateProject(p.id, { latestVersion: release.tag });

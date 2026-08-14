@@ -1,14 +1,13 @@
-/* launcher-page — 主页面：标题栏 / 侧边栏 / 生态园·瑰丽花园·接入·设置视图 / 状态栏 / 观测窗
-   property: state { settings, projects, favorites, repos, reposLoading, starred, starredLoading }
+/* launcher-page — 主页面：标题栏 / 侧边栏 / 生态园·瑰丽花园·设置视图 / 状态栏 / 观测窗
+   property: state { settings, projects, favorites, appVersion, starred, starredLoading }
    method: setProgress(id, info) / appendLog(id, entry) / openDetail(id) / closeDetail()
-   上行事件: card-action / fav-action / save-settings / browse-root / fetch-repos /
-            import-repos / fetch-starred / import-favorites / add-local /
+   上行事件: card-action / fav-action / save-settings / browse-root / request-uninstall /
+            fetch-starred / import-favorites / add-local /
             save-project / browse-dir / open-repo */
 (function () {
   const NAV_ITEMS = [
     { id: 'launcher', label: '生态园', en: 'ECO GARDEN', icon: 'sprout' },
     { id: 'garden', label: '瑰丽花园', en: 'ROSE GARDEN', icon: 'flower' },
-    { id: 'repository', label: '仓库接入', en: 'UPLINK', icon: 'github' },
     { id: 'settings', label: '设置', en: 'CONFIG', icon: 'gear' },
   ];
 
@@ -22,7 +21,6 @@
   const CRUMBS = {
     launcher: 'ECO // 生态园 // ECOLOGICAL GARDEN',
     garden: 'ECO // 瑰丽花园 // ROSE GARDEN',
-    repository: 'ECO // 仓库接入 // GITHUB UPLINK',
     settings: 'ECO // 设置 // SECTION CONFIG',
   };
 
@@ -240,7 +238,7 @@
             </main>
           </div>
           <footer class="statusbar">
-            <span class="seg"><eco-icon name="hexagon" size="11"></eco-icon>ECO v0.1.0 // ELECTRON 43</span>
+            <span class="seg"><eco-icon name="hexagon" size="11"></eco-icon>ECO v${ECO.esc(this.state.appVersion || '…')} // ELECTRON 43</span>
             <span class="seg"><eco-icon name="folder" size="11"></eco-icon>${ECO.esc(settings.rootDir || '—')}</span>
             <span class="spacer"></span>
             <span class="ticker-wrap">
@@ -264,15 +262,6 @@
     }
 
     renderView() {
-      if (this.activeNav === 'repository') {
-        return `
-          <div class="view">
-            <div class="page-head">
-              <div class="title-block"><h1>仓库接入</h1><div class="en">GITHUB UPLINK // REPO INTAKE</div></div>
-            </div>
-            <div class="panel-wrap"><eco-card pad="18"><eco-repo-picker data-role="repo-picker"></eco-repo-picker></eco-card></div>
-          </div>`;
-      }
       if (this.activeNav === 'garden') return this.renderGarden();
       if (this.activeNav === 'settings') {
         return `
@@ -292,7 +281,6 @@
             <div class="controls">
               <eco-input icon="search" placeholder="检索样本…" value="${ECO.esc(this.search)}" data-role="search"></eco-input>
               <eco-segmented value="${this.filterValue}" data-role="filter"></eco-segmented>
-              <eco-button icon="github" data-act="goto-repo">接入仓库</eco-button>
               <eco-button variant="primary" icon="plus" data-act="add-local">本地登记</eco-button>
             </div>
           </div>
@@ -300,7 +288,7 @@
             <div class="empty-all">
               <eco-icon name="sprout" size="30" style="color: var(--eco-teal-deep)"></eco-icon>
               <div class="big">生态园空空如也</div>
-              <div class="sub">通过「接入仓库」或「本地登记」引入第一份样本</div>
+              <div class="sub">展示项目由内置目录提供，也可通过「本地登记」补充样本</div>
             </div>` : groups.length === 0 ? `
             <div class="empty-all">
               <eco-icon name="search" size="26" style="color: var(--eco-ink-3)"></eco-icon>
@@ -372,13 +360,6 @@
         });
       }
 
-      const gotoRepo = $('[data-act="goto-repo"]');
-      if (gotoRepo) {
-        gotoRepo.addEventListener('click', () => {
-          this.activeNav = 'repository';
-          this.render();
-        });
-      }
       const addLocal = $('[data-act="add-local"]');
       if (addLocal) addLocal.addEventListener('click', () => this.emit('add-local'));
 
@@ -401,19 +382,6 @@
         e.stopPropagation();
         this.emit('open-repo', e.detail);
       });
-
-      // 仓库接入（生态园）
-      const picker = $('[data-role="repo-picker"]');
-      if (picker) {
-        picker.addEventListener('fetch-repos', (e) => {
-          e.stopPropagation();
-          this.emit('fetch-repos');
-        });
-        picker.addEventListener('import-repos', (e) => {
-          e.stopPropagation();
-          this.emit('import-repos', e.detail);
-        });
-      }
 
       // 星标采集（瑰丽花园）
       const starPicker = $('[data-role="star-picker"]');
@@ -439,6 +407,10 @@
           e.stopPropagation();
           this.emit('browse-root');
         });
+        panel.addEventListener('request-uninstall', (e) => {
+          e.stopPropagation();
+          this.emit('request-uninstall');
+        });
       }
     }
 
@@ -459,16 +431,6 @@
         sec.projects = this.groupedVisible.find(([g]) => g === name)?.[1] || [];
         Object.entries(this.progressById).forEach(([id, info]) => sec.updateProgress(id, info));
       });
-
-      const picker = $('[data-role="repo-picker"]');
-      if (picker) {
-        picker.hint = '仅接入本人 GitHub 仓库，勾选后移栽至生态园。私有仓库需在设置中配置 Token。';
-        picker.importText = '移栽至生态园';
-        picker.inLabel = '已入园';
-        picker.imported = new Set(this.projects.map((p) => p.repo).filter(Boolean));
-        picker.loading = !!this.state.reposLoading;
-        if (this.state.repos) picker.repos = this.state.repos;
-      }
 
       const starPicker = $('[data-role="star-picker"]');
       if (starPicker) {

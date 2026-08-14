@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { app } = require('electron');
+const { CATALOG } = require('./catalog');
 
 let cache = null;
 
@@ -16,7 +17,6 @@ function defaults() {
       rootDir: path.join(app.getPath('documents'), 'ECO'),
       useRootDir: true,
       autoUpdate: true,
-      github: { username: '', token: '' },
     },
     projects: [],
     favorites: [],
@@ -25,13 +25,57 @@ function defaults() {
 
 function load() {
   if (cache) return cache;
+  const def = defaults();
   try {
-    const raw = fs.readFileSync(storeFile(), 'utf8');
-    cache = Object.assign(defaults(), JSON.parse(raw));
+    const raw = fs.readFileSync(storeFile(), 'utf8').replace(/^\uFEFF/, ''); // 容错 UTF-8 BOM
+    const saved = JSON.parse(raw);
+    cache = {
+      // 逐键合并：升级/迁移永不重置用户已保存的配置；缺失项才回退默认值
+      settings: { ...def.settings, ...(saved.settings || {}) },
+      projects: Array.isArray(saved.projects) ? saved.projects : [],
+      favorites: Array.isArray(saved.favorites) ? saved.favorites : [],
+    };
+    // 剔除历史版本遗留的 github 凭据字段（启动器已全部匿名化）
+    delete cache.settings.github;
+    // 根目录不允许为空（空值会让定植路径失效）
+    if (!cache.settings.rootDir) cache.settings.rootDir = def.settings.rootDir;
   } catch {
-    cache = defaults();
+    cache = def;
   }
+  // 按内置目录增量播种：每次启动补齐目录中缺失的项目（升级新增项目可自动出现）
+  if (seedCatalog(cache)) persist();
   return cache;
+}
+
+/** 补齐内置目录中尚未入园的项目；返回是否有新增 */
+function seedCatalog(state) {
+  const existing = new Set(state.projects.map((p) => p.repo));
+  let added = false;
+  for (const item of CATALOG) {
+    if (existing.has(item.repo)) continue;
+    state.projects.push({
+      id: crypto.randomUUID(),
+      name: item.name,
+      repo: item.repo,
+      repoUrl: `https://github.com/${item.repo}`,
+      description: item.description,
+      language: item.language || '',
+      stars: 0,
+      branch: 'main',
+      group: item.group || '我的项目',
+      installDir: '',
+      launchCmd: '',
+      source: 'github',
+      status: 'not_installed',
+      installPath: '',
+      version: '',
+      latestVersion: '',
+      ignoredVersion: '',
+      addedAt: Date.now(),
+    });
+    added = true;
+  }
+  return added;
 }
 
 function persist() {
@@ -52,48 +96,18 @@ function getSettings() {
 
 function saveSettings(patch) {
   const state = load();
-  state.settings = { ...state.settings, ...patch, github: { ...state.settings.github, ...(patch.github || {}) } };
+  const next = { ...state.settings, ...patch };
+  // 空根目录视为误输入，保留原值
+  if (!next.rootDir) next.rootDir = state.settings.rootDir;
+  state.settings = next;
   persist();
   return state.settings;
 }
 
-/* ---------- 生态园（本人项目） ---------- */
+/* ---------- 生态园（本人项目，来自内置目录） ---------- */
 
 function getProject(id) {
   return load().projects.find((p) => p.id === id) || null;
-}
-
-function importProjects(repos, group) {
-  const state = load();
-  const existing = new Set(state.projects.map((p) => p.repo));
-  const imported = [];
-  for (const repo of repos) {
-    if (existing.has(repo.full_name)) continue;
-    const project = {
-      id: crypto.randomUUID(),
-      name: repo.name,
-      repo: repo.full_name,
-      repoUrl: repo.html_url,
-      description: repo.description || '',
-      language: repo.language || '',
-      stars: repo.stargazers_count || 0,
-      branch: repo.default_branch || 'main',
-      group: group || '未分组',
-      installDir: '',
-      launchCmd: '',
-      source: 'github',
-      status: 'not_installed',
-      installPath: '',
-      version: '',
-      latestVersion: '',
-      ignoredVersion: '',
-      addedAt: Date.now(),
-    };
-    state.projects.push(project);
-    imported.push(project);
-  }
-  persist();
-  return imported;
 }
 
 function addLocalProject(dir) {
@@ -187,7 +201,6 @@ module.exports = {
   getSettings,
   saveSettings,
   getProject,
-  importProjects,
   addLocalProject,
   updateProject,
   removeProject,
