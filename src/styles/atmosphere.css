@@ -1,0 +1,70 @@
+/* ============================================================
+   ECO 氛围层 — 晨雾 / 网格 / 等高线 / 浮游孢子 / 颗粒
+   全部使用 CSS 渐变与内联 SVG，无图片资源
+   ============================================================ */
+
+.atmosphere,
+.atmosphere::before,
+.atmosphere::after {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.atmosphere {
+  z-index: 0;
+  background:
+    /* 晨露光晕 */
+    radial-gradient(900px 620px at 12% -8%, rgba(94, 234, 212, 0.28), transparent 62%),
+    radial-gradient(1100px 760px at 108% 112%, rgba(31, 182, 207, 0.2), transparent 60%),
+    radial-gradient(760px 520px at 78% -12%, rgba(77, 171, 122, 0.14), transparent 65%),
+    /* 基底晨雾 */
+    linear-gradient(158deg, #eef4ef 0%, #e4eee7 42%, #dcebe3 100%);
+}
+
+/* 测绘网格 */
+.atmosphere::before {
+  content: "";
+  background:
+    linear-gradient(rgba(13, 74, 63, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 74, 63, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(13, 74, 63, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(13, 74, 63, 0.08) 1px, transparent 1px);
+  background-size: 48px 48px, 48px 48px, 240px 240px, 240px 240px;
+  mask-image: radial-gradient(120% 100% at 50% 0%, #000 40%, transparent 100%);
+}
+
+/* 等高线 + 暗角 + 颗粒 */
+.atmosphere::after {
+  content: "";
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='700' viewBox='0 0 900 700'%3E%3Cg fill='none' stroke='%230d4a3f' stroke-opacity='.07' stroke-width='1'%3E%3Cpath d='M620 720c-90-60-140-150-110-240s120-160 220-170 200 60 220 160-40 190-140 230-130 70-190 20z'/%3E%3Cpath d='M650 700c-70-50-110-125-85-200s100-130 180-140 165 50 180 130-30 155-115 190-110 55-160 20z'/%3E%3Cpath d='M690 670c-50-35-80-90-60-145s75-95 130-100 120 35 130 95-20 115-85 140-80 40-115 10z'/%3E%3Cpath d='M730 640c-35-25-55-65-42-105s55-68 95-72 85 25 92 68-15 82-60 100-60 28-85 9z'/%3E%3Cpath d='M120 740c-60-40-90-110-65-175s95-115 165-120 140 45 150 120-25 145-95 175-115 40-155 0z'/%3E%3Cpath d='M155 715c-45-30-68-83-49-132s72-87 125-91 105 34 113 90-19 109-72 132-87 30-117 1z'/%3E%3C/g%3E%3C/svg%3E") right bottom / min(72vw, 900px) no-repeat,
+    radial-gradient(130% 110% at 50% 45%, transparent 55%, rgba(13, 60, 50, 0.1) 100%);
+}
+
+/* 浮游孢子层 */
+.spores {
+  position: fixed;
+  inset: -20% 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(2px 2px at 12% 30%, rgba(15, 154, 138, 0.5), transparent 60%),
+    radial-gradient(1.5px 1.5px at 34% 72%, rgba(31, 182, 207, 0.45), transparent 60%),
+    radial-gradient(2.5px 2.5px at 58% 18%, rgba(94, 234, 212, 0.55), transparent 60%),
+    radial-gradient(1.5px 1.5px at 76% 58%, rgba(15, 154, 138, 0.4), transparent 60%),
+    radial-gradient(2px 2px at 90% 34%, rgba(77, 171, 122, 0.45), transparent 60%),
+    radial-gradient(1.5px 1.5px at 45% 44%, rgba(31, 182, 207, 0.35), transparent 60%);
+  background-size: 60vw 60vh;
+  animation: eco-spore-drift 46s linear infinite;
+  opacity: 0.8;
+}
+
+@keyframes eco-spore-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 60vw -60vh;
+  }
+}

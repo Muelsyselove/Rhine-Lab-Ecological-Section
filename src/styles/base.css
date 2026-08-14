@@ -1,0 +1,183 @@
+/* ============================================================
+   ECO 基础样式 — 重置 / 排版 / 通用工具类 / 关键帧
+   ============================================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--eco-font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--eco-ink);
+  background: var(--eco-bg);
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+
+input,
+textarea {
+  user-select: text;
+  cursor: text;
+  font-family: inherit;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(13, 74, 63, 0.18);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 154, 138, 0.4);
+  background-clip: content-box;
+}
+
+::selection {
+  background: rgba(94, 234, 212, 0.45);
+  color: var(--eco-ink);
+}
+
+/* ---------- 通用工具类 ---------- */
+
+/* HUD 微型标签：大写 + 宽字距，莱茵档案风格 */
+.micro-label {
+  font-family: var(--eco-font-mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--eco-ink-3);
+  white-space: nowrap;
+}
+
+.mono {
+  font-family: var(--eco-font-mono);
+}
+
+.hairline {
+  border: none;
+  border-top: 1px solid var(--eco-line);
+}
+
+.hairline-dashed {
+  border: none;
+  border-top: 1px dashed var(--eco-line-strong);
+}
+
+/* 条码装饰条 */
+.barcode {
+  height: 14px;
+  background: repeating-linear-gradient(
+    90deg,
+    var(--eco-ink) 0 2px,
+    transparent 2px 4px,
+    var(--eco-ink) 4px 7px,
+    transparent 7px 9px,
+    var(--eco-ink) 9px 10px,
+    transparent 10px 14px,
+    var(--eco-ink) 14px 15px,
+    transparent 15px 19px
+  );
+  opacity: 0.55;
+}
+
+/* 斜纹警示带 */
+.hazard-stripes {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--eco-amber) 0 8px,
+    transparent 8px 16px
+  );
+}
+
+/* ---------- 关键帧 ---------- */
+@keyframes eco-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes eco-pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 currentColor;
+  }
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 0 4px transparent;
+  }
+}
+
+@keyframes eco-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes eco-scan-sweep {
+  from {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(320%) skewX(-18deg);
+  }
+}
+
+@keyframes eco-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes eco-breathe {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes eco-ticker {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
