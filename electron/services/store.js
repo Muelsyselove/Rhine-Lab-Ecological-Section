@@ -1,4 +1,4 @@
-// 持久化存储 — 用户配置与项目清单，JSON 原子写入
+// 持久化存储 — 用户配置、生态园项目、瑰丽花园收藏，JSON 原子写入
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
@@ -15,9 +15,11 @@ function defaults() {
     settings: {
       rootDir: path.join(app.getPath('documents'), 'ECO'),
       useRootDir: true,
+      autoUpdate: true,
       github: { username: '', token: '' },
     },
     projects: [],
+    favorites: [],
   };
 }
 
@@ -55,6 +57,8 @@ function saveSettings(patch) {
   return state.settings;
 }
 
+/* ---------- 生态园（本人项目） ---------- */
+
 function getProject(id) {
   return load().projects.find((p) => p.id === id) || null;
 }
@@ -80,6 +84,9 @@ function importProjects(repos, group) {
       source: 'github',
       status: 'not_installed',
       installPath: '',
+      version: '',
+      latestVersion: '',
+      ignoredVersion: '',
       addedAt: Date.now(),
     };
     state.projects.push(project);
@@ -106,6 +113,9 @@ function addLocalProject(dir) {
     source: 'local',
     status: 'installed',
     installPath: dir,
+    version: '',
+    latestVersion: '',
+    ignoredVersion: '',
     addedAt: Date.now(),
   };
   state.projects.push(project);
@@ -129,6 +139,49 @@ function removeProject(id) {
   return true;
 }
 
+/* ---------- 瑰丽花园（收藏的他人项目） ---------- */
+
+function importFavorites(repos) {
+  const state = load();
+  const existing = new Set(state.favorites.map((f) => f.repo));
+  const imported = [];
+  for (const repo of repos) {
+    if (existing.has(repo.full_name)) continue;
+    const fav = {
+      id: crypto.randomUUID(),
+      name: repo.name,
+      repo: repo.full_name,
+      repoUrl: repo.html_url,
+      description: repo.description || '',
+      language: repo.language || '',
+      stars: repo.stargazers_count || 0,
+      owner: repo.owner || repo.full_name.split('/')[0] || '',
+      launchPath: '',
+      addedAt: Date.now(),
+    };
+    state.favorites.push(fav);
+    imported.push(fav);
+  }
+  persist();
+  return imported;
+}
+
+function updateFavorite(id, patch) {
+  const state = load();
+  const fav = state.favorites.find((f) => f.id === id);
+  if (!fav) throw new Error(`收藏不存在: ${id}`);
+  Object.assign(fav, patch);
+  persist();
+  return fav;
+}
+
+function removeFavorite(id) {
+  const state = load();
+  state.favorites = state.favorites.filter((f) => f.id !== id);
+  persist();
+  return true;
+}
+
 module.exports = {
   getState,
   getSettings,
@@ -138,4 +191,7 @@ module.exports = {
   addLocalProject,
   updateProject,
   removeProject,
+  importFavorites,
+  updateFavorite,
+  removeFavorite,
 };

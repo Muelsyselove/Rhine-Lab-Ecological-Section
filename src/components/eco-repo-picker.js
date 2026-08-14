@@ -30,6 +30,31 @@
       return this._imported || new Set();
     }
 
+    /** 顶部说明文案 / 导入按钮文案 / 已入库标签，可按场景覆盖 */
+    set hint(v) {
+      this._hint = v;
+      if (this.isConnected) this.render();
+    }
+    get hint() {
+      return this._hint || '从 GitHub 拉取仓库，勾选后导入培育舱。私有仓库需在设置中配置 Token。';
+    }
+
+    set importText(v) {
+      this._importText = v;
+      if (this.isConnected) this.render();
+    }
+    get importText() {
+      return this._importText || '导入培育舱';
+    }
+
+    set inLabel(v) {
+      this._inLabel = v;
+      if (this.isConnected) this.render();
+    }
+    get inLabel() {
+      return this._inLabel || '已入库';
+    }
+
     render() {
       if (!this.shadowRoot) this.attachShadow({ mode: 'open' });
       const repos = this.repos;
@@ -91,7 +116,7 @@
         </style>
         <div class="hint">
           <eco-icon name="github" size="15"></eco-icon>
-          <span>从 GitHub 拉取仓库，勾选后导入培育舱。私有仓库需在设置中配置 Token。</span>
+          <span>${ECO.esc(this.hint)}</span>
         </div>
         ${this.loading ? '<div class="loading-box"><eco-icon name="sync" size="18"></eco-icon><div style="margin-top:8px">FETCHING…</div></div>' : repos ? `
         <div class="list">
@@ -109,7 +134,7 @@
               <div class="rmeta">
                 ${r.language ? `<span>${ECO.esc(r.language)}</span>` : ''}
                 <span class="rmeta"><eco-icon name="star" size="10"></eco-icon>${r.stargazers_count}</span>
-                ${inLib ? '<eco-tag tone="planted">已入库</eco-tag>' : ''}
+                ${inLib ? `<eco-tag tone="planted">${ECO.esc(this.inLabel)}</eco-tag>` : ''}
               </div>
             </div>`;
             })
@@ -120,7 +145,7 @@
           <span class="sel-count">${this._selected.size ? `已选 ${this._selected.size} 项` : ''}</span>
           <span class="spacer"></span>
           <eco-button icon="sync" data-act="fetch" ${this.loading ? 'loading' : ''}>${repos ? '重新拉取' : '拉取仓库'}</eco-button>
-          <eco-button variant="primary" icon="download" data-act="import" ${this._selected.size ? '' : 'disabled'}>导入培育舱</eco-button>
+          <eco-button variant="primary" icon="download" data-act="import" ${this._selected.size ? '' : 'disabled'}>${ECO.esc(this.importText)}</eco-button>
         </div>
       `;
 

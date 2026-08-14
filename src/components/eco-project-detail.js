@@ -3,12 +3,16 @@
    事件: card-action { id, action } / save-project { id, patch } / browse-dir { id } / open-repo { url } */
 (function () {
   const STATUS = {
-    not_installed: { zh: '未定植', en: 'DORMANT', tone: 'dormant' },
-    installing: { zh: '培植中', en: 'GROWING', tone: 'growing' },
-    installed: { zh: '已定植', en: 'PLANTED', tone: 'planted' },
-    running: { zh: '生长中', en: 'THRIVING', tone: 'running' },
-    error: { zh: '异常', en: 'WILTED', tone: 'error' },
+    not_installed: { zh: '未种植', en: 'DORMANT', tone: 'dormant' },
+    installing: { zh: '培育中', en: 'GROWING', tone: 'growing' },
+    installed: { zh: '已长成', en: 'PLANTED', tone: 'planted' },
+    running: { zh: '观察中', en: 'OBSERVING', tone: 'running' },
+    error: { zh: '枯萎', en: 'WILTED', tone: 'error' },
   };
+
+  function hasUpdate(p) {
+    return p.version && p.latestVersion && p.latestVersion !== p.version && p.latestVersion !== p.ignoredVersion;
+  }
 
   class EcoProjectDetail extends ECO.EcoElement {
     set project(p) {
@@ -73,6 +77,16 @@
             padding-top: 13px; border-top: 1px dashed var(--eco-line-strong);
           }
           .spacer { flex: 1; }
+          .mail-banner {
+            display: flex; align-items: center; gap: 9px;
+            padding: 9px 12px; margin-bottom: 15px;
+            background: color-mix(in srgb, var(--eco-amber) 9%, transparent);
+            box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--eco-amber) 42%, transparent);
+            clip-path: var(--eco-clip-btn);
+            font-size: 12px; color: var(--eco-ink);
+          }
+          .mail-banner eco-icon { color: var(--eco-amber); flex: none; }
+          .mail-banner .mono { font-family: var(--eco-font-mono); font-size: 10.5px; color: var(--eco-amber); }
           .clabel {
             font-family: var(--eco-font-mono); font-size: 9px; letter-spacing: .2em;
             color: var(--eco-teal-deep); margin: 14px 0 6px; display: flex; align-items: center; gap: 8px;
@@ -89,10 +103,16 @@
         </div>
         <div class="facts">
           <div class="fact"><div class="fk">语言 LANG</div><div class="fv">${ECO.esc(p.language || '—')}</div></div>
-          <div class="fact"><div class="fk">分支 BRANCH</div><div class="fv">${ECO.esc(p.branch || '—')}</div></div>
-          <div class="fact"><div class="fk">星光 STARS</div><div class="fv">${p.stars ?? '—'}</div></div>
+          <div class="fact"><div class="fk">当前版本 VER</div><div class="fv">${ECO.esc(p.version || '—')}</div></div>
+          <div class="fact"><div class="fk">远方来信 LATEST</div><div class="fv">${ECO.esc(p.latestVersion || '—')}</div></div>
           <div class="fact"><div class="fk">来源 SOURCE</div><div class="fv">${p.source === 'local' ? '本地登记' : 'GitHub'}</div></div>
         </div>
+        ${hasUpdate(p) ? `
+        <div class="mail-banner">
+          <eco-icon name="mail" size="15"></eco-icon>
+          <span>远方来信：发现新版本</span>
+          <span class="mono">${ECO.esc(p.version)} → ${ECO.esc(p.latestVersion)}</span>
+        </div>` : ''}
         <div class="row">
           <eco-input id="group" label="分组 / GROUP" icon="sprout" value="${ECO.esc(p.group || '')}"></eco-input>
         </div>
@@ -107,9 +127,9 @@
           <eco-button icon="check" data-act="save">保存</eco-button>
         </div>
         <div class="clabel">CULTURE LOG · 培养日志</div>
-        <div class="console"><div class="placeholder">// 暂无日志，执行「下载定植」后此处将输出实时记录</div></div>
+        <div class="console"><div class="placeholder">// 暂无日志，执行「种植」后此处将输出实时记录</div></div>
         <div class="actions">
-          ${this.actionsFor(p.status)}
+          ${this.actionsFor(p)}
           <span class="spacer"></span>
           ${p.installPath ? '<eco-button icon="folder-open" data-act="open-folder">打开目录</eco-button>' : ''}
           <eco-button variant="danger" icon="trash" data-act="remove">移出</eco-button>
@@ -140,15 +160,27 @@
       this.renderLogs();
     }
 
-    actionsFor(status) {
+    actionsFor(p) {
+      if (p.status === 'running') {
+        return '<eco-button variant="outline" icon="stop" data-act="stop">停止观察</eco-button>';
+      }
+      if (p.status === 'installing') {
+        return '<eco-button variant="primary" loading disabled>培育中…</eco-button>';
+      }
+      if (p.status === 'error') {
+        return '<eco-button variant="primary" icon="sync" data-act="install">重新种植</eco-button>';
+      }
+      if (hasUpdate(p)) {
+        return `
+          <eco-button variant="primary" icon="mail" data-act="update">生长</eco-button>
+          <eco-button data-act="ignore-update">这样就够了</eco-button>
+          <eco-button variant="outline" icon="eye" data-act="launch">观察</eco-button>`;
+      }
       const map = {
-        not_installed: '<eco-button variant="primary" icon="download" data-act="install">下载定植</eco-button>',
-        installing: '<eco-button variant="primary" loading disabled>培植中…</eco-button>',
-        installed: '<eco-button variant="primary" icon="play" data-act="launch">一键启动</eco-button>',
-        running: '<eco-button variant="outline" icon="stop" data-act="stop">停止运行</eco-button>',
-        error: '<eco-button variant="primary" icon="sync" data-act="install">重新定植</eco-button>',
+        not_installed: '<eco-button variant="primary" icon="download" data-act="install">种植</eco-button>',
+        installed: '<eco-button variant="primary" icon="eye" data-act="launch">观察</eco-button>',
       };
-      return map[status] || '';
+      return map[p.status] || '';
     }
 
     renderLogs() {

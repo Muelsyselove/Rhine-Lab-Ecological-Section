@@ -47,7 +47,7 @@ function registerIpc() {
   ipcMain.handle('state:get', () => store.getState());
   ipcMain.handle('settings:save', (_e, patch) => store.saveSettings(patch));
 
-  // GitHub 仓库拉取与项目导入
+  // 生态园：本人仓库拉取与项目导入
   ipcMain.handle('github:repos', () => github.fetchRepos(store.getSettings().github));
   ipcMain.handle('projects:import', (_e, repos, group) => store.importProjects(repos, group));
   ipcMain.handle('projects:add-local', async () => {
@@ -57,15 +57,34 @@ function registerIpc() {
   });
   ipcMain.handle('projects:update', (_e, id, patch) => store.updateProject(id, patch));
   ipcMain.handle('projects:remove', (_e, id) => store.removeProject(id));
+  ipcMain.handle('projects:ignore-update', (_e, id) => {
+    const p = store.getProject(id);
+    if (!p) return null;
+    return store.updateProject(id, { ignoredVersion: p.latestVersion });
+  });
 
-  // 安装 / 启动 / 停止
-  ipcMain.handle('install:start', (_e, id) => installer.install(id));
+  // 种植 / 生长 / 观察
+  ipcMain.handle('install:start', (_e, id) => installer.install(id, { mode: 'install' }));
+  ipcMain.handle('update:start', (_e, id) => installer.install(id, { mode: 'update' }));
+  ipcMain.handle('updates:check', () => installer.checkUpdates());
   ipcMain.handle('launch:start', (_e, id) => installer.launch(id));
   ipcMain.handle('launch:stop', (_e, id) => installer.stop(id));
   ipcMain.handle('folder:open', (_e, id) => installer.openFolder(id));
 
+  // 瑰丽花园：收藏的他人项目
+  ipcMain.handle('github:starred', () => github.fetchStarred(store.getSettings().github));
+  ipcMain.handle('favorites:import', (_e, repos) => store.importFavorites(repos));
+  ipcMain.handle('favorites:remove', (_e, id) => store.removeFavorite(id));
+  ipcMain.handle('favorites:set-launch', async (_e, id) => {
+    const file = await chooseFile();
+    if (!file) return null;
+    return store.updateFavorite(id, { launchPath: file });
+  });
+  ipcMain.handle('favorites:launch', (_e, id) => installer.launchFavorite(id));
+
   // 系统交互
   ipcMain.handle('dialog:choose-dir', () => chooseDirectory());
+  ipcMain.handle('dialog:choose-file', () => chooseFile());
   ipcMain.handle('shell:open', (_e, url) => shell.openExternal(url));
 
   // 无边框窗口控制
@@ -78,6 +97,14 @@ async function chooseDirectory() {
   const result = await dialog.showOpenDialog(win, {
     title: '选择目录 · Select Directory',
     properties: ['openDirectory', 'createDirectory'],
+  });
+  return result.canceled ? null : result.filePaths[0];
+}
+
+async function chooseFile() {
+  const result = await dialog.showOpenDialog(win, {
+    title: '选择启动程序 · Select Executable',
+    properties: ['openFile'],
   });
   return result.canceled ? null : result.filePaths[0];
 }

@@ -58,6 +58,16 @@
           </div>
         </div>
         <div class="section">
+          <div class="section-title">GROWTH RHYTHM · 生长节律</div>
+          <div class="switch-row">
+            <div class="txt">
+              <div class="t1">自动接收远方来信</div>
+              <div class="t2">启动时自动检查生态园项目的新 Release，来信将在卡片上提示</div>
+            </div>
+            <eco-switch id="autoUpdate" ${s.autoUpdate !== false ? 'checked' : ''}></eco-switch>
+          </div>
+        </div>
+        <div class="section">
           <div class="section-title">GITHUB UPLINK · 仓库接入</div>
           <div class="row">
             <eco-input id="ghUser" label="用户名 / USERNAME" mono icon="github"
@@ -78,10 +88,12 @@
       this.shadowRoot.querySelector('[data-act="save"]').addEventListener('click', () => {
         const val = (id) => this.shadowRoot.querySelector(id).value.trim();
         const useRootDir = this.shadowRoot.querySelector('#useRootDir').has('checked');
+        const autoUpdate = this.shadowRoot.querySelector('#autoUpdate').has('checked');
         this.emit('save-settings', {
           patch: {
             rootDir: val('#rootDir'),
             useRootDir,
+            autoUpdate,
             github: { username: val('#ghUser'), token: val('#ghToken') },
           },
         });
