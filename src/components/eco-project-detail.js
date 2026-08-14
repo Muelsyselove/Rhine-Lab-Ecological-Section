@@ -132,7 +132,8 @@
           ${this.actionsFor(p)}
           <span class="spacer"></span>
           ${p.installPath ? '<eco-button icon="folder-open" data-act="open-folder">打开目录</eco-button>' : ''}
-          <eco-button variant="danger" icon="trash" data-act="remove">移出</eco-button>
+          ${p.installPath && p.source !== 'local' ? '<eco-button icon="sprout" data-act="transplant">移植</eco-button>' : ''}
+          <eco-button variant="danger" icon="trash" data-act="uninstall">${p.source === 'local' ? '取消登记' : '卸载'}</eco-button>
         </div>
       `;
 

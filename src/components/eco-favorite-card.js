@@ -101,7 +101,7 @@
             ${ready ? '<eco-button size="sm" icon="folder-open" data-action="set-launch">换地址</eco-button>' : ''}
             <span class="spacer"></span>
             <eco-button size="sm" icon="github" data-action="jump">GitHub</eco-button>
-            <eco-button size="sm" icon="trash" data-action="remove">移出</eco-button>
+            <eco-button size="sm" icon="trash" data-action="remove">取消收藏</eco-button>
           </div>
         </div>
       `;

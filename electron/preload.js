@@ -11,7 +11,8 @@ contextBridge.exposeInMainWorld('eco', {
   // 生态园（本人项目，来自内置目录）
   addLocalProject: () => invoke('projects:add-local'),
   updateProject: (id, patch) => invoke('projects:update', id, patch),
-  removeProject: (id) => invoke('projects:remove', id),
+  uninstallProject: (id) => invoke('projects:uninstall', id),
+  transplantProject: (id) => invoke('projects:transplant', id),
   ignoreUpdate: (id) => invoke('projects:ignore-update', id),
 
   // 种植 / 生长 / 观察

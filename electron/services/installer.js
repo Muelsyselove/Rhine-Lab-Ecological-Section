@@ -286,6 +286,58 @@ async function openFolder(id) {
   return shell.openPath(project.installPath);
 }
 
+/* ---------- 卸载（原「移出」）：文件进回收站可找回，条目保留可重种 ---------- */
+async function uninstall(id) {
+  const project = store.getProject(id);
+  if (!project) throw new Error('项目不存在');
+  try {
+    await stop(id);
+  } catch {
+    /* 未运行时忽略 */
+  }
+  // 本地登记项目：文件本就属于用户，仅取消登记，绝不动文件
+  if (project.source === 'local') {
+    store.removeProject(id);
+    return { removed: true };
+  }
+  // GitHub 项目：种植目录送入回收站（可找回），条目保留回到未种植态
+  if (project.installPath && fs.existsSync(project.installPath)) {
+    await shell.trashItem(project.installPath);
+  }
+  store.updateProject(id, {
+    status: 'not_installed',
+    installPath: '',
+    installDir: '',
+    version: '',
+    latestVersion: '',
+    ignoredVersion: '',
+  });
+  return { removed: false };
+}
+
+/* ---------- 移植：手动迁移种植目录 ---------- */
+async function transplant(id, targetParent) {
+  const project = store.getProject(id);
+  if (!project) throw new Error('项目不存在');
+  if (project.source === 'local') throw new Error('本地登记项目文件由您自行管理，不支持移植');
+  if (!project.installPath || !fs.existsSync(project.installPath)) throw new Error('项目尚未种植，无法移植');
+  if (!targetParent) throw new Error('未选择移植目标目录');
+
+  const dst = path.join(targetParent, path.basename(project.installPath));
+  if (dst === project.installPath) return store.getProject(id);
+  if (fs.existsSync(dst)) throw new Error(`目标位置已存在同名目录：${dst}`);
+
+  fs.mkdirSync(targetParent, { recursive: true });
+  try {
+    fs.renameSync(project.installPath, dst); // 同盘直接搬
+  } catch {
+    // 跨盘：复制到新址，原目录送回收站（可找回）
+    await fs.promises.cp(project.installPath, dst, { recursive: true });
+    await shell.trashItem(project.installPath);
+  }
+  return store.updateProject(id, { installDir: dst, installPath: dst });
+}
+
 /* ---------- 瑰丽花园：启动自选程序 ---------- */
 async function launchFavorite(id) {
   const state = store.getState();
@@ -306,6 +358,8 @@ module.exports = {
   stop,
   stopAll,
   openFolder,
+  uninstall,
+  transplant,
   checkUpdates,
   launchFavorite,
   resolveInstallDir,

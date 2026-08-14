@@ -63,7 +63,14 @@ function registerIpc() {
     return store.addLocalProject(dir);
   });
   ipcMain.handle('projects:update', (_e, id, patch) => store.updateProject(id, patch));
-  ipcMain.handle('projects:remove', (_e, id) => store.removeProject(id));
+  // 卸载（原「移出」）：GitHub 项目文件入回收站、条目保留；本地项目仅取消登记
+  ipcMain.handle('projects:uninstall', (_e, id) => installer.uninstall(id));
+  // 移植：弹目录框选目标位置，手动迁移种植目录
+  ipcMain.handle('projects:transplant', async (_e, id) => {
+    const dir = await chooseDirectory();
+    if (!dir) return null;
+    return installer.transplant(id, dir);
+  });
   ipcMain.handle('projects:ignore-update', (_e, id) => {
     const p = store.getProject(id);
     if (!p) return null;

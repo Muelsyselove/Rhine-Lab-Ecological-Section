@@ -93,11 +93,20 @@
         case 'open-folder':
           await bridge.openProjectFolder(id);
           break;
-        case 'remove':
-          await bridge.removeProject(id);
-          ECO.toast('样本已移出生态园', 'ok');
+        case 'uninstall': {
+          const r = await bridge.uninstallProject(id);
+          ECO.toast(r && r.removed ? '已取消登记（文件未做任何改动）' : '已卸载，文件在回收站可找回，可随时重新种植', 'ok');
           await refresh();
           break;
+        }
+        case 'transplant': {
+          const moved = await bridge.transplantProject(id);
+          if (moved) {
+            ECO.toast(`移植完成 · ${moved.installPath}`, 'ok');
+            await refresh();
+          }
+          break;
+        }
         default:
           break;
       }
@@ -175,7 +184,7 @@
           break;
         case 'remove':
           await bridge.removeFavorite(id);
-          ECO.toast('已移出瑰丽花园', 'ok');
+          ECO.toast('已取消收藏，可随时从星标列表重新移栽', 'ok');
           await refresh();
           break;
         default:
