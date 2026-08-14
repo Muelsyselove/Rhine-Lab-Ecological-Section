@@ -25,4 +25,10 @@ const CATALOG = [
   },
 ];
 
-module.exports = { OWNER, CATALOG };
+// 分组 → 定植子目录（保持路径全 ASCII，避免中文路径引发的兼容问题）
+const GROUP_DIRS = {
+  我的项目: 'my-projects',
+  本地样本: 'local-samples',
+};
+
+module.exports = { OWNER, CATALOG, GROUP_DIRS };

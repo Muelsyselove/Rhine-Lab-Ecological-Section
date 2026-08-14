@@ -8,6 +8,7 @@ const { shell } = require('electron');
 const store = require('./store');
 const github = require('./github');
 const { httpFetch } = require('./http');
+const { GROUP_DIRS } = require('./catalog');
 
 let sender = null;
 const running = new Map(); // projectId -> child process
@@ -25,14 +26,17 @@ function sanitize(name) {
 }
 
 // 解析实际安装目录：优先项目自定义路径，否则 根目录/分组/项目名
+// 目录名只用 ASCII：GitHub 项目取 repo 英文名，分组走映射表，保证路径无中文
 function resolveInstallDir(project, settings) {
   if (project.installDir) return project.installDir;
-  return path.join(settings.rootDir, sanitize(project.group), project.name);
+  const groupName = GROUP_DIRS[sanitize(project.group)] || 'projects';
+  const dirName = project.repo ? project.repo.split('/').pop() : sanitize(project.name);
+  return path.join(settings.rootDir, groupName, dirName);
 }
 
 function runCommand(command, args, cwd, id, stage) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, shell: process.platform === 'win32' });
+    const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true });
     child.stdout.on('data', (buf) => {
       buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage, line }));
     });
@@ -159,7 +163,8 @@ async function install(id, opts = {}) {
     return done;
   }
 
-  const dir = resolveInstallDir(project, settings);
+  // 生长（更新）沿用原目录，不因路径规则调整而换位置留下残留
+  const dir = (mode === 'update' && project.installPath) || resolveInstallDir(project, settings);
   store.updateProject(id, { status: 'installing' });
   emit({ id, stage: 'start', mode, line: mode === 'update' ? '生长开始…' : `种植目标: ${dir}` });
   try {
@@ -235,6 +240,7 @@ async function launch(id) {
     cwd: project.installPath,
     shell: plan.shell || process.platform === 'win32',
     detached: true,
+    windowsHide: true, // 静默启动：不弹 cmd 窗口，输出仍回流到观测日志
   });
   child.stdout.on('data', (buf) => {
     buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage: 'run', line }));
@@ -288,7 +294,7 @@ async function launchFavorite(id) {
   if (!fav.launchPath) throw new Error('尚未选择启动地址，样本静待耕耘');
   const stat = fs.existsSync(fav.launchPath) ? fs.statSync(fav.launchPath) : null;
   if (stat && stat.isDirectory()) return shell.openPath(fav.launchPath);
-  const child = spawn(fav.launchPath, [], { detached: true, stdio: 'ignore' });
+  const child = spawn(fav.launchPath, [], { detached: true, stdio: 'ignore', windowsHide: true });
   child.unref();
   return fav;
 }
