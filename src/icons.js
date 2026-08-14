@@ -92,5 +92,15 @@
     globe: {
       body: `<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.3 3.8 5.2 3.8 8.5s-1.3 6.2-3.8 8.5c-2.5-2.3-3.8-5.2-3.8-8.5s1.3-6.2 3.8-8.5z"/>`,
     },
+    pulse2: {
+      body: `<rect x="3" y="4" width="18" height="13" rx="1.5"/><path d="M6 10.5l2-3 2.5 6 2-4.5 1.5 1.5H18"/><path d="M9 21h6M12 17v4"/>`,
+    },
+    battery: {
+      body: `<rect x="2.5" y="7.5" width="17" height="9" rx="1.5"/><path d="M22 10.5v3"/><path d="M6 10.5v3M9.5 10.5v3" stroke-width="1.6"/>`,
+    },
+    'chevron-left': { body: `<path d="M14.5 6l-6 6 6 6"/>` },
+    calendar: {
+      body: `<rect x="3.5" y="5" width="17" height="16" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/>`,
+    },
   };
 })();

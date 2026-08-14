@@ -8,6 +8,7 @@
   const NAV_ITEMS = [
     { id: 'launcher', label: '生态园', en: 'ECO GARDEN', icon: 'sprout' },
     { id: 'garden', label: '瑰丽花园', en: 'ROSE GARDEN', icon: 'flower' },
+    { id: 'dashboard', label: '监测站', en: 'MONITOR', icon: 'pulse2' },
     { id: 'settings', label: '设置', en: 'CONFIG', icon: 'gear' },
   ];
 
@@ -21,6 +22,7 @@
   const CRUMBS = {
     launcher: 'ECO // 生态园 // ECOLOGICAL GARDEN',
     garden: 'ECO // 瑰丽花园 // ROSE GARDEN',
+    dashboard: 'ECO // 监测站 // ECO MONITOR',
     settings: 'ECO // 设置 // SECTION CONFIG',
   };
 
@@ -263,6 +265,15 @@
 
     renderView() {
       if (this.activeNav === 'garden') return this.renderGarden();
+      if (this.activeNav === 'dashboard') {
+        return `
+          <div class="view">
+            <div class="page-head">
+              <div class="title-block"><h1>生态监测站</h1><div class="en">ECO MONITOR // DEVICE ACTIVITY</div></div>
+            </div>
+            <eco-dashboard></eco-dashboard>
+          </div>`;
+      }
       if (this.activeNav === 'settings') {
         return `
           <div class="view">

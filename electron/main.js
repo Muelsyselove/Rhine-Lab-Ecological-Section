@@ -6,6 +6,7 @@ const { spawn } = require('node:child_process');
 const store = require('./services/store');
 const github = require('./services/github');
 const installer = require('./services/installer');
+const dashboard = require('./services/dashboard');
 
 // 任务栏 / 通知正确归属到本应用
 if (process.platform === 'win32') app.setAppUserModelId('eco.rhinelab.section');
@@ -95,6 +96,9 @@ function registerIpc() {
     return store.updateFavorite(id, { launchPath: file });
   });
   ipcMain.handle('favorites:launch', (_e, id) => installer.launchFavorite(id));
+
+  // 生态监测站：设备活动仪表盘
+  ipcMain.handle('dashboard:fetch', (_e, opts) => dashboard.fetchDashboard(opts || {}));
 
   // 系统交互
   ipcMain.handle('dialog:choose-dir', () => chooseDirectory());

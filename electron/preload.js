@@ -30,6 +30,9 @@ contextBridge.exposeInMainWorld('eco', {
   setFavoriteLaunch: (id) => invoke('favorites:set-launch', id),
   launchFavorite: (id) => invoke('favorites:launch', id),
 
+  // 生态监测站
+  fetchDashboard: (opts) => invoke('dashboard:fetch', opts),
+
   // 系统
   chooseDirectory: () => invoke('dialog:choose-dir'),
   chooseFile: () => invoke('dialog:choose-file'),
