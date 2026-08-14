@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://api.github.com"
+    />
+    <title>莱茵生命生态科 · ECO</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Michroma&family=Saira:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles/tokens.css" />
+    <link rel="stylesheet" href="./styles/base.css" />
+    <link rel="stylesheet" href="./styles/atmosphere.css" />
+  </head>
+  <body>
+    <!-- 氛围层 -->
+    <div class="atmosphere"></div>
+    <div class="spores"></div>
+
+    <!-- 应用挂载点 -->
+    <div id="app"></div>
+    <eco-toast-host></eco-toast-host>
+
+    <!-- 图标与工具 -->
+    <script src="./icons.js"></script>
+    <script src="./avatar.js"></script>
+    <!-- 数据与桥接 -->
+    <script src="./data/mock.js"></script>
+    <script src="./bridge.js"></script>
+    <!-- 基础组件 -->
+    <script src="./components/base.js"></script>
+    <script src="./components/eco-icon.js"></script>
+    <script src="./components/eco-button.js"></script>
+    <script src="./components/eco-tag.js"></script>
+    <script src="./components/eco-card.js"></script>
+    <script src="./components/eco-progress.js"></script>
+    <script src="./components/eco-switch.js"></script>
+    <script src="./components/eco-input.js"></script>
+    <script src="./components/eco-modal.js"></script>
+    <script src="./components/eco-toast.js"></script>
+    <script src="./components/eco-segmented.js"></script>
+    <!-- 业务组件 -->
+    <script src="./components/eco-titlebar.js"></script>
+    <script src="./components/eco-sidebar.js"></script>
+    <script src="./components/eco-project-card.js"></script>
+    <script src="./components/eco-favorite-card.js"></script>
+    <script src="./components/eco-group-section.js"></script>
+    <script src="./components/eco-repo-picker.js"></script>
+    <script src="./components/eco-settings-panel.js"></script>
+    <script src="./components/eco-project-detail.js"></script>
+    <!-- 页面与应用 -->
+    <script src="./pages/launcher-page.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

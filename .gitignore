@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.DS_Store
+
+# Trae 预览分享残留
+.trae-html-share-packages/

@@ -1,0 +1,67 @@
+/* ============================================================
+   ECO 设计令牌 — 莱茵生命 · 生态科
+   晨露 / 净水 / 培养舱玻璃 / 苔原墨色
+   ============================================================ */
+:root {
+  /* 墨色阶 */
+  --eco-ink: #0d241e;
+  --eco-ink-2: #43615a;
+  --eco-ink-3: #7d978e;
+  --eco-ink-inverse: #eaf6f0;
+
+  /* 基底 */
+  --eco-bg: #e7efea;
+  --eco-bg-2: #dde9e2;
+
+  /* 玻璃培养舱 */
+  --eco-glass: rgba(255, 255, 255, 0.55);
+  --eco-glass-strong: rgba(255, 255, 255, 0.78);
+  --eco-glass-deep: rgba(240, 248, 244, 0.92);
+  --eco-line: rgba(13, 74, 63, 0.14);
+  --eco-line-strong: rgba(13, 74, 63, 0.34);
+
+  /* 生态强调色 */
+  --eco-teal: #0f9a8a;
+  --eco-teal-deep: #0a6e60;
+  --eco-mint: #5eead4;
+  --eco-cyan: #1fb6cf;
+  --eco-leaf: #4dab7a;
+  --eco-amber: #d97706;
+  --eco-red: #d33f33;
+
+  /* 状态语义 */
+  --eco-st-dormant: #8aa39b;   /* 未定植 */
+  --eco-st-growing: #1fb6cf;   /* 培植中 */
+  --eco-st-planted: #0f9a8a;   /* 已定植 */
+  --eco-st-running: #3fae5c;   /* 生长中 */
+  --eco-st-error: #d33f33;     /* 枯萎/异常 */
+
+  /* 字体 */
+  --eco-font-brand: "Michroma", "Saira", sans-serif;
+  --eco-font-display: "Saira", "PingFang SC", "Microsoft YaHei UI", sans-serif;
+  --eco-font-body: "Saira", "PingFang SC", "Microsoft YaHei UI", "Noto Sans SC", sans-serif;
+  --eco-font-mono: "IBM Plex Mono", "Cascadia Code", "JetBrains Mono", Consolas, monospace;
+
+  /* 切角 */
+  --eco-clip-card: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
+  --eco-clip-btn: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+  --eco-clip-tag: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  --eco-clip-chip: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+
+  /* 动效 */
+  --eco-ease: cubic-bezier(0.22, 0.9, 0.24, 1);
+  --eco-ease-spring: cubic-bezier(0.34, 1.4, 0.4, 1);
+  --eco-t-fast: 0.16s;
+  --eco-t: 0.3s;
+
+  /* 阴影 */
+  --eco-shadow: 0 10px 34px rgba(11, 60, 50, 0.1), 0 2px 8px rgba(11, 60, 50, 0.06);
+  --eco-shadow-lift: 0 18px 48px rgba(11, 60, 50, 0.16), 0 4px 12px rgba(11, 60, 50, 0.08);
+  --eco-glow-teal: 0 0 0 1px rgba(15, 154, 138, 0.35), 0 6px 24px rgba(15, 154, 138, 0.22);
+
+  /* 布局 */
+  --eco-titlebar-h: 46px;
+  --eco-statusbar-h: 34px;
+  --eco-sidebar-w: 236px;
+  --eco-radius: 2px;
+}
