@@ -2,6 +2,7 @@
 // 全部匿名访问公开 API，启动器无需任何 GitHub 凭据配置
 const API_BASE = 'https://api.github.com';
 const { OWNER } = require('./catalog');
+const { httpFetch } = require('./http');
 
 // 瑰丽花园：收藏的他人项目（starred，固定采集 OWNER 的星标列表）
 async function fetchStarred() {
@@ -10,7 +11,7 @@ async function fetchStarred() {
 
 // 最新 Release（含 ECO 资产挑选）
 async function fetchLatestRelease(fullName) {
-  const res = await fetch(`${API_BASE}/repos/${fullName}/releases/latest`, {
+  const res = await httpFetch(`${API_BASE}/repos/${fullName}/releases/latest`, {
     headers: headers(),
   });
   if (res.status === 404) return null; // 尚无 Release
@@ -49,7 +50,7 @@ async function requestAll(pathAndQuery) {
   const repos = [];
   let url = API_BASE + pathAndQuery;
   for (let page = 0; page < 5 && url; page += 1) {
-    const res = await fetch(url, { headers: headers() });
+    const res = await httpFetch(url, { headers: headers() });
     if (!res.ok) {
       const text = await res.text();
       throw new Error(`GitHub API ${res.status}: ${text.slice(0, 200)}`);

@@ -7,6 +7,7 @@ const path = require('node:path');
 const { shell } = require('electron');
 const store = require('./store');
 const github = require('./github');
+const { httpFetch } = require('./http');
 
 let sender = null;
 const running = new Map(); // projectId -> child process
@@ -66,7 +67,7 @@ async function stageConnect(project, id, mode) {
 async function stageDownload(release, id, mode) {
   const url = release.asset.url;
   emit({ id, stage: 'download', mode, percent: 0, line: `播种: ${release.asset.name}` });
-  const res = await fetch(url, {
+  const res = await httpFetch(url, {
     headers: { 'User-Agent': 'ECO-Launcher', Accept: 'application/octet-stream' },
     redirect: 'follow',
   });
