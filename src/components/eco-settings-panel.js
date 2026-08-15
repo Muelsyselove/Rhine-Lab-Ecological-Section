@@ -112,9 +112,11 @@
           const bar = this.shadowRoot && this.shadowRoot.querySelector('#updProg');
           const hint = this.shadowRoot && this.shadowRoot.querySelector('#updHint');
           if (bar && p.percent >= 0) bar.setAttribute('value', String(p.percent));
-          if (hint && p.total) {
+          if (hint) {
             const mb = (n) => (n / 1048576).toFixed(1);
-            hint.textContent = `正在下载 · ${p.percent}%（${mb(p.got)} / ${mb(p.total)} MB）`;
+            hint.textContent = p.total
+              ? `正在下载 · ${p.percent}%（${mb(p.got)} / ${mb(p.total)} MB）`
+              : `正在下载 · 已接收 ${mb(p.got)} MB`;
           }
         });
       }

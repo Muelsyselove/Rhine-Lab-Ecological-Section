@@ -44,22 +44,24 @@ async function check() {
   };
 }
 
-/** 流式下载（手动跟随重定向，GitHub 资产会 302 到 CDN） */
-function downloadTo(url, dest, onProgress, hops = 0) {
+/** 流式下载（手动跟随重定向，GitHub 资产会 302 到 CDN）
+ *  expectedSize：API 已知的目标大小。代理环境响应头常无 content-length（chunked），
+ *  用它兜底，保证进度条与总大小正确显示 */
+function downloadTo(url, dest, onProgress, hops = 0, expectedSize = 0) {
   return new Promise((resolve, reject) => {
     if (hops > 8) return reject(new Error('下载重定向次数过多'));
     const req = net.request({ url });
     req.on('response', (res) => {
       const loc = res.headers && res.headers.location;
       if (res.statusCode >= 300 && res.statusCode < 400 && loc && loc[0]) {
-        resolve(downloadTo(new URL(loc[0], url).toString(), dest, onProgress, hops + 1));
+        resolve(downloadTo(new URL(loc[0], url).toString(), dest, onProgress, hops + 1, expectedSize));
         return;
       }
       if (res.statusCode !== 200) {
         reject(new Error(`下载失败：HTTP ${res.statusCode}`));
         return;
       }
-      const total = Number((res.headers['content-length'] || [])[0] || 0);
+      const total = Number((res.headers['content-length'] || [])[0] || 0) || expectedSize;
       let got = 0;
       const out = fs.createWriteStream(dest);
       res.on('data', (chunk) => {
@@ -88,7 +90,7 @@ async function download(asset, onProgress) {
   _downloading = true;
   try {
     const dest = path.join(app.getPath('temp'), asset.name || 'ECO-Setup-latest.exe');
-    const r = await downloadTo(asset.url, dest, onProgress);
+    const r = await downloadTo(asset.url, dest, onProgress, 0, asset.size || 0);
     if (r.total && r.size !== r.total) throw new Error('下载不完整，请重试');
     return { path: r.path, size: r.size };
   } finally {

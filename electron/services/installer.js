@@ -15,6 +15,9 @@ const running = new Map(); // projectId -> child process
 
 // 国内网络兜底：pip 直连 files.pythonhosted.org 常读超时（pip 退出码 2），失败后走清华镜像重试
 const PIP_MIRROR_ARGS = ['-i', 'https://pypi.tuna.tsinghua.edu.cn/simple', '--trusted-host', 'pypi.tuna.tsinghua.edu.cn'];
+// Python 子进程统一强制 UTF-8 模式：pip 解析 requirements 按系统区域编码（中文 Windows 为
+// GBK），文件含 UTF-8 中文注释时报 UnicodeDecodeError: 'gbk' codec；运行期读 UTF-8 文件同理
+const PYTHON_UTF8_ENV = { PYTHONUTF8: '1', PYTHONIOENCODING: 'utf-8' };
 // npm 项目 electron 二进制下载被墙：统一走 npmmirror 镜像（与自身 dist 脚本一致）
 const ELECTRON_MIRROR_ENV = { ELECTRON_MIRROR: 'https://npmmirror.com/mirrors/electron/' };
 
@@ -61,8 +64,10 @@ function isPip(cmd) {
 /** 执行一条 pip 步骤：官方源（放宽超时）失败后自动用国内镜像重试一次 */
 async function runPipStep(cmd, args, dir, id, mode) {
   // 统一走 python -m pip：规避 WindowsApps pip 壳与环境差异，保证与启动用的 python 一致
+  // 环境强制 UTF-8：requirements 文件的 UTF-8 中文注释在 GBK 区域下会令 pip 崩溃
+  const env = { ...process.env, ...PYTHON_UTF8_ENV };
   const attempt = (extra) =>
-    runCommand('python', ['-m', 'pip', ...args, '--timeout', '60', '--retries', '3', ...extra], dir, id, 'deps');
+    runCommand('python', ['-m', 'pip', ...args, '--timeout', '60', '--retries', '3', ...extra], dir, id, 'deps', env);
   try {
     await attempt([]);
     return;
@@ -74,7 +79,7 @@ async function runPipStep(cmd, args, dir, id, mode) {
     } catch {
       // 镜像也失败：回退 manifest 原命令（用户可能自带 pip 配置/代理）
       emit({ id, stage: 'deps', mode, line: '镜像亦受阻，回退项目声明的原始命令…', stderr: true });
-      await runCommand(cmd, args, dir, id, 'deps');
+      await runCommand(cmd, args, dir, id, 'deps', env);
     }
   }
 }
@@ -319,6 +324,9 @@ async function launch(id) {
     shell: plan.shell || process.platform === 'win32',
     detached: true,
     windowsHide: true, // 静默启动：不弹 cmd 窗口，输出仍回流到观测日志
+    env: /^(python|py)\b/i.test(plan.cmd)
+      ? { ...process.env, ...PYTHON_UTF8_ENV }
+      : process.env, // Python 项目强制 UTF-8，规避 GBK 区域编码问题
   });
   child.stdout.on('data', (buf) => {
     buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage: 'run', line }));
