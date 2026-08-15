@@ -2,7 +2,7 @@
 (function () {
   class EcoCard extends ECO.EcoElement {
     static get attrs() {
-      return ['pad', 'hoverable', 'flat'];
+      return ['pad', 'hoverable', 'flat', 'stretch'];
     }
 
     render() {
@@ -10,6 +10,7 @@
       const pad = this.attr('pad', '16');
       const hoverable = this.has('hoverable');
       const flat = this.has('flat');
+      const stretch = this.has('stretch');
       this.shadowRoot.innerHTML = `
         <style>
           :host { display: block; }
@@ -25,6 +26,8 @@
                         transform var(--eco-t) var(--eco-ease),
                         background var(--eco-t) var(--eco-ease);
           }
+          /* stretch：宿主被 flex 拉伸时，内容列也随高度填充（供时间轴等长内容区） */
+          ${stretch ? '.card { display: flex; flex-direction: column; height: 100%; min-height: 0; }' : ''}
           ${hoverable ? `
           .card:hover {
             transform: translateY(-3px);

@@ -1,7 +1,7 @@
 {
   "name": "rhine-lab-ecological-section",
   "productName": "Rhine Lab Ecological Section",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "莱茵生命生态科 (ECO) — 个人项目集合与启动器",
   "main": "electron/main.js",
   "license": "AGPL-3.0-or-later",

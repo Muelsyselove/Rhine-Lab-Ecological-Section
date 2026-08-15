@@ -258,6 +258,14 @@
     } catch {
       /* 来信失败静默，不影响启动 */
     }
+    // 自我更新：静默检查，发现新版本提示前往设置页
+    if (typeof bridge.checkSelfUpdate !== 'function') return;
+    try {
+      const u = await bridge.checkSelfUpdate();
+      if (u && u.hasUpdate) ECO.toast(`发现新版本 v${u.latestVersion}，请前往「设置」页更新`, 'info');
+    } catch {
+      /* 自我更新检查失败静默 */
+    }
   }
   boot();
 })();

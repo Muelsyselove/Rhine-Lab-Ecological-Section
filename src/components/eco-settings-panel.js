@@ -79,6 +79,18 @@
             </div>
             <eco-button icon="trash" data-act="uninstall" style="display:none">卸载</eco-button>
           </div>
+          <div class="switch-row">
+            <div class="txt">
+              <div class="t1">自我更新<span id="updState" class="ver" style="margin-left:8px"></span></div>
+              <div class="t2" id="updHint">检查 GitHub Release，在应用内完成下载与升级</div>
+              <eco-progress id="updProg" style="display:none;margin-top:8px"></eco-progress>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+              <eco-button icon="sync" data-act="upd-check">检查更新</eco-button>
+              <eco-button variant="primary" icon="download" data-act="upd-download" style="display:none">下载更新</eco-button>
+              <eco-button variant="primary" icon="check" data-act="upd-install" style="display:none">重启安装</eco-button>
+            </div>
+          </div>
           <div class="note">※ 仓库源已内置：github.com/Muelsyselove（生态园项目与瑰丽花园均无需任何 GitHub 配置，开箱即用）。</div>
         </div>
         <div class="foot">
@@ -88,6 +100,24 @@
 
       this.shadowRoot.querySelector('[data-act="browse"]').addEventListener('click', () => this.emit('browse-root'));
       this.shadowRoot.querySelector('[data-act="uninstall"]').addEventListener('click', () => this.emit('request-uninstall'));
+      // 自我更新
+      this.shadowRoot.querySelector('[data-act="upd-check"]').addEventListener('click', () => this.runSelfUpdateCheck());
+      this.shadowRoot.querySelector('[data-act="upd-download"]').addEventListener('click', () => this.runSelfUpdateDownload());
+      this.shadowRoot.querySelector('[data-act="upd-install"]').addEventListener('click', () => this.runSelfUpdateInstall());
+      this.applyUpdateUi();
+      // 下载进度订阅只挂一次（render 会重建按钮，但订阅挂在 window 上）
+      if (!this._updProgressWired && typeof window.eco.onSelfUpdateProgress === 'function') {
+        this._updProgressWired = true;
+        window.eco.onSelfUpdateProgress((p) => {
+          const bar = this.shadowRoot && this.shadowRoot.querySelector('#updProg');
+          const hint = this.shadowRoot && this.shadowRoot.querySelector('#updHint');
+          if (bar && p.percent >= 0) bar.setAttribute('value', String(p.percent));
+          if (hint && p.total) {
+            const mb = (n) => (n / 1048576).toFixed(1);
+            hint.textContent = `正在下载 · ${p.percent}%（${mb(p.got)} / ${mb(p.total)} MB）`;
+          }
+        });
+      }
       this.shadowRoot.querySelector('[data-act="save"]').addEventListener('click', () => {
         const val = (id) => this.shadowRoot.querySelector(id).value.trim();
         const useRootDir = this.shadowRoot.querySelector('#useRootDir').has('checked');
@@ -112,6 +142,94 @@
           })
           .catch(() => {});
       }
+    }
+
+    /* ---------- 自我更新 ---------- */
+
+    async runSelfUpdateCheck() {
+      if (typeof window.eco.checkSelfUpdate !== 'function') return;
+      const state = this.shadowRoot.querySelector('#updState');
+      const hint = this.shadowRoot.querySelector('#updHint');
+      if (state) state.textContent = '';
+      if (hint) hint.textContent = '正在检查 GitHub Release…';
+      try {
+        this._upd = await window.eco.checkSelfUpdate();
+      } catch (err) {
+        if (hint) hint.textContent = `检查失败：${(err && err.message) || err}`;
+        return;
+      }
+      this.applyUpdateUi();
+    }
+
+    applyUpdateUi() {
+      if (!this.shadowRoot) return;
+      const u = this._upd;
+      const state = this.shadowRoot.querySelector('#updState');
+      const hint = this.shadowRoot.querySelector('#updHint');
+      const check = this.shadowRoot.querySelector('[data-act="upd-check"]');
+      const dl = this.shadowRoot.querySelector('[data-act="upd-download"]');
+      const ins = this.shadowRoot.querySelector('[data-act="upd-install"]');
+      if (!u || !state || !hint) return;
+      if (this._updFile) {
+        // 已下载：等待重启安装
+        state.textContent = ` v${u.latestVersion} 已就绪`;
+        hint.textContent = '安装包已就绪，点击「重启安装」进入安装向导';
+        if (check) check.style.display = 'none';
+        if (dl) dl.style.display = 'none';
+        if (ins) ins.style.display = '';
+        return;
+      }
+      if (!u.packaged) {
+        state.textContent = '';
+        hint.textContent = '开发版（Debug）不支持自我更新，请使用安装版（Release）';
+        if (check) check.style.display = 'none';
+        if (dl) dl.style.display = 'none';
+        if (ins) ins.style.display = 'none';
+        return;
+      }
+      if (u.hasUpdate) {
+        state.textContent = ` 发现 v${u.latestVersion}`;
+        const mb = u.asset && u.asset.size ? `（约 ${(u.asset.size / 1048576).toFixed(1)} MB）` : '';
+        hint.textContent = `当前 v${u.current}${mb}，可升级至 v${u.latestVersion}`;
+        if (check) check.style.display = '';
+        if (dl) dl.style.display = '';
+        if (ins) ins.style.display = 'none';
+      } else {
+        state.textContent = '';
+        hint.textContent = `已是最新版本（v${u.current}）`;
+        if (check) check.style.display = '';
+        if (dl) dl.style.display = 'none';
+        if (ins) ins.style.display = 'none';
+      }
+    }
+
+    async runSelfUpdateDownload() {
+      if (!this._upd || !this._upd.asset) return;
+      const bar = this.shadowRoot.querySelector('#updProg');
+      const hint = this.shadowRoot.querySelector('#updHint');
+      if (bar) {
+        bar.style.display = '';
+        bar.setAttribute('value', '0');
+      }
+      if (hint) hint.textContent = '正在下载更新…';
+      try {
+        const r = await window.eco.downloadSelfUpdate(this._upd.asset);
+        this._updFile = r && r.path;
+        ECO.toast('更新包下载完成，可重启安装', 'ok');
+      } catch (err) {
+        if (bar) bar.style.display = 'none';
+        if (hint) hint.textContent = `下载失败：${(err && err.message) || err}`;
+        return;
+      }
+      if (bar) bar.style.display = 'none';
+      this.applyUpdateUi();
+    }
+
+    runSelfUpdateInstall() {
+      if (!this._updFile) return;
+      window.eco.installSelfUpdate(this._updFile).then((r) => {
+        if (!r || !r.ok) ECO.toast((r && r.error) || '启动安装失败', 'error');
+      });
     }
 
     applyAppInfo() {

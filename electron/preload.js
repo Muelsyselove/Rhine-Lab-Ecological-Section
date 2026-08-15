@@ -39,6 +39,9 @@ contextBridge.exposeInMainWorld('eco', {
   openExternal: (url) => invoke('shell:open', url),
   getAppInfo: () => invoke('app:info'),
   uninstallApp: () => invoke('app:uninstall'),
+  checkSelfUpdate: () => invoke('self-update:check'),
+  downloadSelfUpdate: (asset) => invoke('self-update:download', asset),
+  installSelfUpdate: (filePath) => invoke('self-update:install', filePath),
   minimize: () => invoke('win:min'),
   toggleMaximize: () => invoke('win:max'),
   closeWindow: () => invoke('win:close'),
@@ -48,5 +51,12 @@ contextBridge.exposeInMainWorld('eco', {
     const handler = (_event, payload) => callback(payload);
     ipcRenderer.on('eco:progress', handler);
     return () => ipcRenderer.removeListener('eco:progress', handler);
+  },
+
+  // 自我更新下载进度订阅，返回取消订阅函数
+  onSelfUpdateProgress: (callback) => {
+    const handler = (_event, payload) => callback(payload);
+    ipcRenderer.on('self-update:progress', handler);
+    return () => ipcRenderer.removeListener('self-update:progress', handler);
   },
 });

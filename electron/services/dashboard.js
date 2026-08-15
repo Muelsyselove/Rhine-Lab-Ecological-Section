@@ -21,19 +21,13 @@ async function getJson(path) {
   return res.json();
 }
 
-// 优先尝试一体化 dashboard 接口；不存在则回退 current + timeline 组合
+// 一体化 dashboard/view 接口：服务端已聚合成 UI 就绪数据（分组/配色/文案）
 async function fetchDashboard({ date, deviceId } = {}) {
   const day = date || today();
   const dev = deviceId ? `&device_id=${encodeURIComponent(deviceId)}` : '';
-
-  const dash = await getJson(`/api/dashboard?date=${day}&tz=${TZ}${dev}`);
-  if (dash) return { ...dash, source: 'dashboard' };
-
-  const [current, timeline] = await Promise.all([
-    getJson(`/api/current`),
-    getJson(`/api/timeline?date=${day}&tz=${TZ}${dev}`),
-  ]);
-  return { date: day, current, timeline, source: 'combined' };
+  const data = await getJson(`/api/dashboard/view?date=${day}&tz=${TZ}${dev}`);
+  if (!data) throw new Error('监测接口返回空数据');
+  return { ...data, source: 'dashboard-view' };
 }
 
 module.exports = { fetchDashboard };

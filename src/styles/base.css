@@ -42,20 +42,40 @@ button {
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
+/* 滑块默认近乎隐形，悬浮容器时才淡入，融入培养舱玻璃质感（7px 轨道 + 2px 视觉滑杆） */
 ::-webkit-scrollbar-thumb {
-  background: rgba(13, 74, 63, 0.18);
-  border: 2px solid transparent;
+  background: transparent;
+  border: 2.5px solid transparent;
+  border-radius: 8px;
+  background-clip: content-box;
+  transition: background var(--eco-t) var(--eco-ease);
+}
+*:hover::-webkit-scrollbar-thumb,
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(13, 74, 63, 0.16);
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 154, 138, 0.4);
+  background: rgba(15, 154, 138, 0.42);
   background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:active {
+  background: rgba(10, 110, 96, 0.55);
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(13, 74, 63, 0.22) transparent;
 }
 
 ::selection {

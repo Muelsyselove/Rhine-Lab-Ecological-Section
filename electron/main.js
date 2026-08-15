@@ -7,6 +7,7 @@ const store = require('./services/store');
 const github = require('./services/github');
 const installer = require('./services/installer');
 const dashboard = require('./services/dashboard');
+const updater = require('./services/updater');
 
 // 任务栏 / 通知正确归属到本应用
 if (process.platform === 'win32') app.setAppUserModelId('eco.rhinelab.section');
@@ -99,6 +100,15 @@ function registerIpc() {
 
   // 生态监测站：设备活动仪表盘
   ipcMain.handle('dashboard:fetch', (_e, opts) => dashboard.fetchDashboard(opts || {}));
+
+  // 应用自我更新：检查 / 下载（进度经 self-update:progress 推送）/ 安装
+  ipcMain.handle('self-update:check', () => updater.check());
+  ipcMain.handle('self-update:download', (_e, asset) =>
+    updater.download(asset, (p) => {
+      if (win && !win.isDestroyed()) win.webContents.send('self-update:progress', p);
+    })
+  );
+  ipcMain.handle('self-update:install', (_e, filePath) => updater.install(filePath));
 
   // 系统交互
   ipcMain.handle('dialog:choose-dir', () => chooseDirectory());
