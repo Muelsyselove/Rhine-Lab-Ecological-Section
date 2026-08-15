@@ -4,7 +4,7 @@ const { spawn } = require('node:child_process');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { shell } = require('electron');
+const { app, shell } = require('electron');
 const store = require('./store');
 const github = require('./github');
 const { httpFetch } = require('./http');
@@ -45,15 +45,117 @@ function resolveInstallDir(project, settings) {
 function runCommand(command, args, cwd, id, stage, env) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true, env: env || process.env });
+    trackPid(id, child.pid); // 落盘登记：卡死/失败后残留的子进程要在下次种植前清理
     child.stdout.on('data', (buf) => {
       buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage, line }));
     });
     child.stderr.on('data', (buf) => {
       buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage, line, stderr: true }));
     });
-    child.on('error', reject);
-    child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`${command} 退出码 ${code}`))));
+    child.on('error', (err) => {
+      untrackPid(id, child.pid);
+      reject(err);
+    });
+    child.on('close', (code) => {
+      untrackPid(id, child.pid);
+      if (code === 0) resolve();
+      else reject(new Error(`${command} 退出码 ${code}`));
+    });
   });
+}
+
+/* ---------- 残留安装进程治理 ----------
+   卡死的 pip/npm 不会随 ECO 退出而终止，其工作目录会锁住种植目录，
+   令下次种植的 rmSync 报 EPERM。PID 落盘登记，重种植前统一树杀。 */
+const pidFile = () => path.join(app.getPath('userData'), 'eco-pids.json');
+
+function loadPidMap() {
+  try {
+    return JSON.parse(fs.readFileSync(pidFile(), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function savePidMap(map) {
+  try {
+    fs.writeFileSync(pidFile(), JSON.stringify(map));
+  } catch {
+    /* 登记失败不影响主流程 */
+  }
+}
+
+function trackPid(id, pid) {
+  if (!pid) return;
+  const map = loadPidMap();
+  (map[id] = map[id] || []).push(pid);
+  savePidMap(map);
+}
+
+function untrackPid(id, pid) {
+  const map = loadPidMap();
+  const list = (map[id] || []).filter((p) => p !== pid);
+  if (list.length) map[id] = list;
+  else delete map[id];
+  savePidMap(map);
+}
+
+/** 结束该项目登记在案的残留安装子进程（树杀），并清空登记 */
+async function killStaleDeps(id, mode) {
+  const map = loadPidMap();
+  const pids = map[id] || [];
+  delete map[id];
+  savePidMap(map);
+  if (!pids.length) return;
+  emit({ id, stage: 'deps', mode, line: `清理 ${pids.length} 个残留安装进程…`, stderr: true });
+  for (const pid of pids) {
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+    } else {
+      try {
+        process.kill(pid);
+      } catch {
+        /* 已退出 */
+      }
+    }
+  }
+  await new Promise((r) => setTimeout(r, 700)); // 等句柄释放
+}
+
+/** 清扫所有 python -m pip 进程（用于旧版本未登记的残留锁目录场景） */
+function sweepStalePip() {
+  if (process.platform !== 'win32') return;
+  try {
+    spawn(
+      'powershell',
+      [
+        '-NoProfile',
+        '-Command',
+        "Get-CimInstance Win32_Process -Filter \"Name='python.exe' or Name='python3.exe'\" | Where-Object { $_.CommandLine -match '-m pip' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+      ],
+      { windowsHide: true, stdio: 'ignore' }
+    );
+  } catch {
+    /* 清扫失败交由后续报错指引 */
+  }
+}
+
+/** 删除旧种植目录：带重试；被残留进程锁住时清扫 pip 后再试；仍失败给出指引 */
+async function removeDir(dir, id, mode) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
+    return;
+  } catch (err) {
+    emit({ id, stage: 'extract', mode, line: `旧目录被占用（${err.code || err.message}），清扫残留 pip 进程后重试…`, stderr: true });
+    sweepStalePip();
+    await new Promise((r) => setTimeout(r, 900));
+    try {
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
+      return;
+    } catch {
+      throw new Error(`种植目录被残留进程锁定：${dir}。请在任务管理器结束 python/pip 进程（或重启电脑）后重试`);
+    }
+  }
 }
 
 /** 是否 pip 类命令 */
@@ -135,7 +237,7 @@ async function stageDownload(release, id, mode) {
 /* ---------- 阶段三：浇水（解压） ---------- */
 async function stageExtract(archive, dir, id, mode) {
   emit({ id, stage: 'extract', mode, line: `浇水至 ${dir}` });
-  fs.rmSync(dir, { recursive: true, force: true });
+  await removeDir(dir, id, mode); // 清理旧目录（含残留进程锁治理）
   fs.mkdirSync(dir, { recursive: true });
   const isZip = archive.endsWith('.zip');
   if (isZip && process.platform === 'win32') {
@@ -231,6 +333,7 @@ async function install(id, opts = {}) {
 
   // 本地登记项目：无 release 管线，直接施肥
   if (project.source === 'local') {
+    await killStaleDeps(id, mode); // 先清残留安装进程，避免文件被锁
     store.updateProject(id, { status: 'installing' });
     const manifest = readManifest(project.installPath);
     await stageDeps(project.installPath, manifest, id, mode);
@@ -244,6 +347,7 @@ async function install(id, opts = {}) {
   store.updateProject(id, { status: 'installing' });
   emit({ id, stage: 'start', mode, line: mode === 'update' ? '生长开始…' : `种植目标: ${dir}` });
   try {
+    await killStaleDeps(id, mode); // 先清残留安装进程：卡死的 pip 会锁住种植目录令 rmSync 报 EPERM
     const release = await stageConnect(project, id, mode);
     const archive = await stageDownload(release, id, mode);
     await stageExtract(archive, dir, id, mode);
