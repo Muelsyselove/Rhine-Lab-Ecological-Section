@@ -61,7 +61,9 @@ function isPip(cmd) {
   return cmd === 'pip' || cmd === 'pip3' || cmd === 'python -m pip' || cmd === 'py -m pip';
 }
 
-/** 执行一条 pip 步骤：官方源（放宽超时）失败后自动用国内镜像重试一次 */
+/** 执行一条 pip 步骤：国内网络默认走清华镜像（PySide6 等百 MB 大轮子直连官方源
+ *  经代理易停滞卡死——socket 超时只管无数据间隙，慢速爬行永远不触发），
+ *  镜像受阻再回退官方源，最后回退 manifest 原命令 */
 async function runPipStep(cmd, args, dir, id, mode) {
   // 统一走 python -m pip：规避 WindowsApps pip 壳与环境差异，保证与启动用的 python 一致
   // 环境强制 UTF-8：requirements 文件的 UTF-8 中文注释在 GBK 区域下会令 pip 崩溃
@@ -69,16 +71,15 @@ async function runPipStep(cmd, args, dir, id, mode) {
   const attempt = (extra) =>
     runCommand('python', ['-m', 'pip', ...args, '--timeout', '60', '--retries', '3', ...extra], dir, id, 'deps', env);
   try {
-    await attempt([]);
+    await attempt(PIP_MIRROR_ARGS);
     return;
   } catch (err) {
-    emit({ id, stage: 'deps', mode, line: `官方源受阻（${err.message}），改用清华镜像重试…`, stderr: true });
+    emit({ id, stage: 'deps', mode, line: `镜像受阻（${err.message}），改用官方源重试…`, stderr: true });
     try {
-      await attempt(PIP_MIRROR_ARGS);
-      emit({ id, stage: 'deps', mode, line: '镜像施肥成功' });
+      await attempt([]);
     } catch {
-      // 镜像也失败：回退 manifest 原命令（用户可能自带 pip 配置/代理）
-      emit({ id, stage: 'deps', mode, line: '镜像亦受阻，回退项目声明的原始命令…', stderr: true });
+      // 官方源也失败：回退 manifest 原命令（用户可能自带 pip 配置/代理）
+      emit({ id, stage: 'deps', mode, line: '官方源亦受阻，回退项目声明的原始命令…', stderr: true });
       await runCommand(cmd, args, dir, id, 'deps', env);
     }
   }
@@ -322,7 +323,9 @@ async function launch(id) {
   const child = spawn(plan.cmd, plan.args, {
     cwd: project.installPath,
     shell: plan.shell || process.platform === 'win32',
-    detached: true,
+    // Windows 下 detached 会令子进程新建自己的控制台窗口（windowsHide 拦不完全）；
+    // 且 Windows 子进程本就随父进程退出后存活，detached 并无必要
+    detached: process.platform !== 'win32',
     windowsHide: true, // 静默启动：不弹 cmd 窗口，输出仍回流到观测日志
     env: /^(python|py)\b/i.test(plan.cmd)
       ? { ...process.env, ...PYTHON_UTF8_ENV }
@@ -346,10 +349,15 @@ async function launch(id) {
 async function stop(id) {
   const child = running.get(id);
   if (child) {
-    try {
-      process.kill(-child.pid);
-    } catch {
-      child.kill();
+    if (process.platform === 'win32' && child.pid) {
+      // 树杀：连同 cmd → node/electron/python 子孙进程一并结束（未设 detached，无进程组可用）
+      spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], { windowsHide: true, stdio: 'ignore' });
+    } else {
+      try {
+        process.kill(-child.pid);
+      } catch {
+        child.kill();
+      }
     }
     running.delete(id);
   }
@@ -432,7 +440,8 @@ async function launchFavorite(id) {
   if (!fav.launchPath) throw new Error('尚未选择启动地址，样本静待耕耘');
   const stat = fs.existsSync(fav.launchPath) ? fs.statSync(fav.launchPath) : null;
   if (stat && stat.isDirectory()) return shell.openPath(fav.launchPath);
-  const child = spawn(fav.launchPath, [], { detached: true, stdio: 'ignore', windowsHide: true });
+  // 不设 detached：Windows 下会令子进程新建控制台窗口；不设 stdio:'ignore' 之外的流也无碍
+  const child = spawn(fav.launchPath, [], { windowsHide: true, stdio: 'ignore' });
   child.unref();
   return fav;
 }

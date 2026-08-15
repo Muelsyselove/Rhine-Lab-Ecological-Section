@@ -102,7 +102,8 @@ async function download(asset, onProgress) {
 function install(filePath) {
   const exe = filePath;
   if (!exe || !fs.existsSync(exe)) return { ok: false, error: '安装包不存在，请重新下载' };
-  spawn(exe, [], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+  // 不设 detached：Windows 下会令子进程新建控制台窗口；安装向导为 GUI 程序，存活不受父进程退出影响
+  spawn(exe, [], { windowsHide: true, stdio: 'ignore' }).unref();
   setTimeout(() => app.quit(), 400);
   return { ok: true };
 }
