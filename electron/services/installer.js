@@ -44,7 +44,10 @@ function resolveInstallDir(project, settings) {
 
 function runCommand(command, args, cwd, id, stage, env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true, env: env || process.env });
+    // Windows 上 npm/pnpm/yarn 是 .cmd 脚本、含空格的命令串必须走 shell；
+    // python/node/powershell/tar 直启——避免 cmd.exe 中间层以其 cwd 锁死种植目录
+    const needsShell = process.platform === 'win32' && (/\s/.test(command) || ['npm', 'pnpm', 'yarn'].includes(command));
+    const child = spawn(command, args, { cwd, shell: needsShell, windowsHide: true, env: env || process.env });
     trackPid(id, child.pid); // 落盘登记：卡死/失败后残留的子进程要在下次种植前清理
     child.stdout.on('data', (buf) => {
       buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage, line }));
@@ -122,39 +125,68 @@ async function killStaleDeps(id, mode) {
   await new Promise((r) => setTimeout(r, 700)); // 等句柄释放
 }
 
-/** 清扫所有 python -m pip 进程（用于旧版本未登记的残留锁目录场景） */
-function sweepStalePip() {
+/** 清扫可能锁住目录的进程：pip 类 python 进程 + 命令行引用了该目录的工具进程。
+ *  注：旧版 shell 启动残留的 cmd.exe 中间层命令行不含路径、无法精确识别，
+ *  也不敢滥杀 cmd——交给 removeDir 的改名隔离兜底 */
+async function sweepLockingProcesses(dir) {
   if (process.platform !== 'win32') return;
+  const safeDir = String(dir).replace(/'/g, "''");
   try {
-    spawn(
+    const child = spawn(
       'powershell',
       [
         '-NoProfile',
         '-Command',
-        "Get-CimInstance Win32_Process -Filter \"Name='python.exe' or Name='python3.exe'\" | Where-Object { $_.CommandLine -match '-m pip' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+        `Get-CimInstance Win32_Process -Filter "Name='python.exe' or Name='python3.exe' or Name='pip.exe' or Name='node.exe' or Name='tar.exe'" | Where-Object { ($_.CommandLine -and $_.CommandLine.indexOf('${safeDir}') -ge 0) -or ($_.CommandLine -match 'pip(\\.exe)?($| )') -or ($_.CommandLine -match '-m pip') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`,
       ],
       { windowsHide: true, stdio: 'ignore' }
     );
+    await new Promise((r) => child.on('close', () => r(null)));
   } catch {
-    /* 清扫失败交由后续报错指引 */
+    /* 清扫失败交由改名隔离兜底 */
   }
 }
 
-/** 删除旧种植目录：带重试；被残留进程锁住时清扫 pip 后再试；仍失败给出指引 */
+/** 删除旧种植目录：rmSync 重试 → 清扫占用进程再试 → 改名隔离兜底。
+ *  Windows 下被进程 cwd/句柄锁定的目录无法删除但可以重命名——
+ *  把锁死的旧目录改名旁路（.eco-stale-<ts>），残留进程持有旧句柄不碍事，
+ *  新目录照常创建，任何历史残留进程都无法再阻断种植 */
 async function removeDir(dir, id, mode) {
-  try {
-    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 300 });
-    return;
-  } catch (err) {
-    emit({ id, stage: 'extract', mode, line: `旧目录被占用（${err.code || err.message}），清扫残留 pip 进程后重试…`, stderr: true });
-    sweepStalePip();
-    await new Promise((r) => setTimeout(r, 900));
+  const rm = (retries, delay) => {
     try {
-      fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 500 });
-      return;
+      fs.rmSync(dir, { recursive: true, force: true, maxRetries: retries, retryDelay: delay });
+      return true;
     } catch {
-      throw new Error(`种植目录被残留进程锁定：${dir}。请在任务管理器结束 python/pip 进程（或重启电脑）后重试`);
+      return false;
     }
+  };
+  if (rm(5, 300)) return;
+  emit({ id, stage: 'extract', mode, line: '旧目录被占用（EPERM），清理占用进程后重试…', stderr: true });
+  await sweepLockingProcesses(dir);
+  if (rm(5, 500)) return;
+  const tomb = `${dir}.eco-stale-${Date.now()}`;
+  try {
+    fs.renameSync(dir, tomb);
+    emit({ id, stage: 'extract', mode, line: `旧目录被残留进程锁定，已改名隔离：${path.basename(tomb)}（进程退出后会被自动清理）`, stderr: true });
+  } catch {
+    throw new Error(`种植目录被残留进程锁定且无法隔离：${dir}。请在任务管理器结束相关 python/cmd 进程（或重启电脑）后重试`);
+  }
+}
+
+/** best-effort 清理历史改名隔离的孤儿目录（.eco-stale-*）；锁未释放则留待下次 */
+function sweepStaleTombs(parentDir) {
+  try {
+    for (const name of fs.readdirSync(parentDir)) {
+      if (name.includes('.eco-stale-')) {
+        try {
+          fs.rmSync(path.join(parentDir, name), { recursive: true, force: true });
+        } catch {
+          /* 锁未释放，留待下次 */
+        }
+      }
+    }
+  } catch {
+    /* 父目录不可读则跳过 */
   }
 }
 
@@ -239,6 +271,7 @@ async function stageExtract(archive, dir, id, mode) {
   emit({ id, stage: 'extract', mode, line: `浇水至 ${dir}` });
   await removeDir(dir, id, mode); // 清理旧目录（含残留进程锁治理）
   fs.mkdirSync(dir, { recursive: true });
+  sweepStaleTombs(path.dirname(dir)); // 顺手清理此前改名隔离的孤儿目录（锁已释放的话）
   const isZip = archive.endsWith('.zip');
   if (isZip && process.platform === 'win32') {
     await runCommand('powershell', ['-NoProfile', '-Command', `Expand-Archive -LiteralPath '${archive}' -DestinationPath '${dir}' -Force`], dir, id, 'extract');
