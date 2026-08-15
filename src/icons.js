@@ -37,6 +37,7 @@
       body: `<path d="M12 3.5L2.8 19.5h18.4z"/><path d="M12 9.5V14"/><circle cx="12" cy="16.8" r=".9" fill="currentColor" stroke="none"/>`,
     },
     sync: { body: `<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/>` },
+    copy: { body: `<rect x="9" y="9" width="11" height="11" rx="1.5"/><path d="M5 15H4.5A1.5 1.5 0 0 1 3 13.5v-9A1.5 1.5 0 0 1 4.5 3h9A1.5 1.5 0 0 1 15 4.5V5"/>` },
     star: {
       body: `<path d="M12 3.6l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.7-5 2.7.9-5.6-4-4 5.6-.8z"/>`,
     },

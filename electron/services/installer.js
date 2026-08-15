@@ -13,6 +13,11 @@ const { GROUP_DIRS } = require('./catalog');
 let sender = null;
 const running = new Map(); // projectId -> child process
 
+// 国内网络兜底：pip 直连 files.pythonhosted.org 常读超时（pip 退出码 2），失败后走清华镜像重试
+const PIP_MIRROR_ARGS = ['-i', 'https://pypi.tuna.tsinghua.edu.cn/simple', '--trusted-host', 'pypi.tuna.tsinghua.edu.cn'];
+// npm 项目 electron 二进制下载被墙：统一走 npmmirror 镜像（与自身 dist 脚本一致）
+const ELECTRON_MIRROR_ENV = { ELECTRON_MIRROR: 'https://npmmirror.com/mirrors/electron/' };
+
 function attach(win) {
   sender = win.webContents;
 }
@@ -34,9 +39,9 @@ function resolveInstallDir(project, settings) {
   return path.join(settings.rootDir, groupName, dirName);
 }
 
-function runCommand(command, args, cwd, id, stage) {
+function runCommand(command, args, cwd, id, stage, env) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true });
+    const child = spawn(command, args, { cwd, shell: process.platform === 'win32', windowsHide: true, env: env || process.env });
     child.stdout.on('data', (buf) => {
       buf.toString().split('\n').filter(Boolean).forEach((line) => emit({ id, stage, line }));
     });
@@ -46,6 +51,32 @@ function runCommand(command, args, cwd, id, stage) {
     child.on('error', reject);
     child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`${command} 退出码 ${code}`))));
   });
+}
+
+/** 是否 pip 类命令 */
+function isPip(cmd) {
+  return cmd === 'pip' || cmd === 'pip3' || cmd === 'python -m pip' || cmd === 'py -m pip';
+}
+
+/** 执行一条 pip 步骤：官方源（放宽超时）失败后自动用国内镜像重试一次 */
+async function runPipStep(cmd, args, dir, id, mode) {
+  // 统一走 python -m pip：规避 WindowsApps pip 壳与环境差异，保证与启动用的 python 一致
+  const attempt = (extra) =>
+    runCommand('python', ['-m', 'pip', ...args, '--timeout', '60', '--retries', '3', ...extra], dir, id, 'deps');
+  try {
+    await attempt([]);
+    return;
+  } catch (err) {
+    emit({ id, stage: 'deps', mode, line: `官方源受阻（${err.message}），改用清华镜像重试…`, stderr: true });
+    try {
+      await attempt(PIP_MIRROR_ARGS);
+      emit({ id, stage: 'deps', mode, line: '镜像施肥成功' });
+    } catch {
+      // 镜像也失败：回退 manifest 原命令（用户可能自带 pip 配置/代理）
+      emit({ id, stage: 'deps', mode, line: '镜像亦受阻，回退项目声明的原始命令…', stderr: true });
+      await runCommand(cmd, args, dir, id, 'deps');
+    }
+  }
 }
 
 async function exists(p) {
@@ -140,10 +171,49 @@ async function stageDeps(dir, manifest, id, mode) {
     if (steps.length) emit({ id, stage: 'deps', mode, line: '未找到 manifest，自动探测依赖' });
   }
   for (const [cmd, args] of steps) {
-    emit({ id, stage: 'deps', mode, line: `$ ${cmd} ${args.join(' ')}` });
-    await runCommand(cmd, args, dir, id, 'deps');
+    if (isPip(cmd)) {
+      emit({ id, stage: 'deps', mode, line: `$ python -m pip ${args.join(' ')}` });
+      await runPipStep(cmd, args, dir, id, mode);
+    } else {
+      emit({ id, stage: 'deps', mode, line: `$ ${cmd} ${args.join(' ')}` });
+      const env = cmd === 'npm' || cmd === 'pnpm' || cmd === 'yarn'
+        ? { ...process.env, ...ELECTRON_MIRROR_ENV }
+        : undefined;
+      await runCommand(cmd, args, dir, id, 'deps', env);
+    }
   }
+  // npm 项目兜底：electron 二进制常因网络被墙缺失（npm install 显示成功但无法启动）
+  await ensureElectronBinary(dir, id, mode);
   if (!steps.length) emit({ id, stage: 'deps', mode, line: '无需额外养分' });
+}
+
+/** 保障 npm 项目的 Electron 运行时：整包缺失则从镜像补装，仅 dist 缺失则补跑 install.js（幂等） */
+async function ensureElectronBinary(dir, id, mode) {
+  try {
+    const nmElectron = path.join(dir, 'node_modules', 'electron');
+    const hasPkg = await exists(path.join(nmElectron, 'package.json'));
+    if (hasPkg) {
+      if (await exists(path.join(nmElectron, 'dist'))) return; // 完好
+      emit({ id, stage: 'deps', mode, line: '检测到 Electron 运行时缺失（安装期网络受阻），从镜像补种…', stderr: true });
+      await runCommand('node', ['install.js'], nmElectron, id, 'deps', { ...process.env, ...ELECTRON_MIRROR_ENV });
+    } else {
+      // electron 整包缺失：从 package.json 取版本，单独补装（不写入 package.json）
+      const pkgPath = path.join(dir, 'package.json');
+      if (!await exists(pkgPath)) return;
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      const ver = (pkg.devDependencies && pkg.devDependencies.electron) || (pkg.dependencies && pkg.dependencies.electron);
+      if (!ver) return; // 非 electron 项目
+      emit({ id, stage: 'deps', mode, line: `检测到 Electron 依赖整体缺失（安装期网络受阻），从镜像补种 electron@${ver} …`, stderr: true });
+      await runCommand('npm', ['install', '--no-save', `electron@${ver}`], dir, id, 'deps', { ...process.env, ...ELECTRON_MIRROR_ENV });
+      if (!await exists(path.join(nmElectron, 'dist'))) {
+        await runCommand('node', ['install.js'], nmElectron, id, 'deps', { ...process.env, ...ELECTRON_MIRROR_ENV });
+      }
+    }
+    emit({ id, stage: 'deps', mode, line: 'Electron 运行时已就绪' });
+  } catch (err) {
+    emit({ id, stage: 'deps', mode, line: `Electron 运行时补种失败：${err.message}`, stderr: true });
+    throw err;
+  }
 }
 
 /* ---------- 种植 / 生长（更新） ---------- */
@@ -236,6 +306,14 @@ async function launch(id) {
   if (!plan) throw new Error('未找到启动方式，请在观测窗中配置启动命令');
 
   emit({ id, stage: 'launch', line: `观察开始: $ ${plan.cmd} ${plan.args.join(' ')}` });
+  // 自愈：npm/pnpm/yarn 启动的项目若 electron 二进制缺失（安装期网络受阻），先补种再启动
+  if (['npm', 'pnpm', 'yarn'].includes(plan.cmd)) {
+    try {
+      await ensureElectronBinary(project.installPath, id, 'install');
+    } catch {
+      /* 补种失败照常尝试启动，错误会回流到观测日志 */
+    }
+  }
   const child = spawn(plan.cmd, plan.args, {
     cwd: project.installPath,
     shell: plan.shell || process.platform === 'win32',

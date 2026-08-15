@@ -69,6 +69,8 @@
             padding: 12px 14px; height: 168px; overflow-y: auto;
             font-family: var(--eco-font-mono); font-size: 10.5px; line-height: 1.7;
             color: #9fe8d4; margin-top: 4px;
+            user-select: text; cursor: text; /* 允许光标拖选与复制 */
+            scrollbar-width: thin; scrollbar-color: rgba(159, 232, 212, 0.3) transparent;
           }
           .console .stderr { color: #f2a99f; }
           .console .placeholder { color: rgba(159, 232, 212, 0.4); letter-spacing: .1em; }
@@ -126,7 +128,7 @@
             value="${ECO.esc(p.launchCmd || '')}" placeholder="例如: npm run start 或 python main.py"></eco-input>
           <eco-button icon="check" data-act="save">保存</eco-button>
         </div>
-        <div class="clabel">CULTURE LOG · 培养日志</div>
+        <div class="clabel">CULTURE LOG · 培养日志<eco-button data-act="copy-logs" icon="copy" size="sm" style="margin-left:auto">复制</eco-button></div>
         <div class="console"><div class="placeholder">// 暂无日志，执行「种植」后此处将输出实时记录</div></div>
         <div class="actions">
           ${this.actionsFor(p)}
@@ -151,6 +153,12 @@
             });
           } else if (act === 'browse') {
             this.emit('browse-dir', { id: p.id });
+          } else if (act === 'copy-logs') {
+            if (!this.logs.length) return ECO.toast('暂无日志可复制', 'info');
+            navigator.clipboard
+              .writeText(this.logs.map((l) => l.line).join('\n'))
+              .then(() => ECO.toast(`已复制 ${this.logs.length} 行日志`, 'ok'))
+              .catch(() => ECO.toast('复制失败，请手动拖选日志文本', 'error'));
           } else if (act === 'open-repo') {
             this.emit('open-repo', { url: p.repoUrl });
           } else {

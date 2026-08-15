@@ -274,15 +274,12 @@
           .loading-note { font-family: var(--eco-font-mono); font-size: 9px; letter-spacing: .18em;
             color: var(--eco-teal-deep); text-align: center; padding: 30px; }
 
-          /* shadow DOM 内滚动条（与全局一致的纤细样式） */
-          ::-webkit-scrollbar { width: 7px; height: 7px; }
-          ::-webkit-scrollbar-track { background: transparent; }
-          ::-webkit-scrollbar-thumb { background: transparent; border: 2.5px solid transparent;
-            border-radius: 8px; background-clip: content-box; transition: background var(--eco-t) var(--eco-ease); }
-          *:hover::-webkit-scrollbar-thumb { background: rgba(13,74,63,.16); background-clip: content-box; }
-          ::-webkit-scrollbar-thumb:hover { background: rgba(15,154,138,.42); background-clip: content-box; }
-          ::-webkit-scrollbar-thumb:active { background: rgba(10,110,96,.55); background-clip: content-box; }
-          ::-webkit-scrollbar-corner { background: transparent; }
+          /* shadow DOM 内滚动条：::-webkit-scrollbar 伪元素在 shadow DOM 不生效，
+             改用标准属性（Chromium 121+ / Electron 43 支持），纤细且融入配色 */
+          .tl, .sum-text, :host {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(13, 74, 63, 0.32) transparent;
+          }
         </style>
 
         ${this.headerHtml(meta)}
